@@ -1,10 +1,16 @@
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 from schemas import UserRole
 
 # In-memory database (replace with Postgres later)
-# Structure: {username: {id, username, email, hashed_password, role}}
+# Users: {username: {id, username, email, hashed_password, role}}
 fake_users_db: Dict[str, dict] = {}
 user_id_counter = 1
+
+# Games: {game_id: {id, title, genre, image_url}}
+games_db: Dict[str, dict] = {}
+
+# Prices: [{game_id, store, price, currency, url}]
+prices_db: List[dict] = []
 
 
 def get_user_by_username(username: str) -> Optional[dict]:
