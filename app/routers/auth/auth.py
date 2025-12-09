@@ -19,6 +19,7 @@ class TokenRequest(BaseModel):
 
 @router.post("/google")
 async def google_auth(data: TokenRequest):
+    """Login with Google authentication"""
     try:
         id_info = id_token.verify_oauth2_token(
             data.token,
