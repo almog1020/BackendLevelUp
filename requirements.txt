@@ -5,3 +5,7 @@ python-jose[cryptography]
 passlib[bcrypt]
 python-multipart
 httpx
+sqlmodel
+psycopg2
+google-auth
+python-dotenv
