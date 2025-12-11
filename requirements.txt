@@ -1,3 +1,10 @@
 fastapi[standard]
 uvicorn[standard]
 pydantic
+pydantic-settings
+pydantic[email]
+fastapi
+sqlalchemy
+psycopg2-binary
+passlib[bcrypt]
+email-validator
