@@ -12,6 +12,9 @@ from datetime import datetime
 
 from schemas import Game, GamePrice
 
+# RAWG API Key
+RAWG_API_KEY = "1aae403692eb4b459afc2cb34f6d4eaf"
+
 
 # ============== EXTRACT ==============
 
@@ -21,7 +24,6 @@ async def extract_from_cheapshark(search: Optional[str] = None) -> list[dict]:
     https://apidocs.cheapshark.com/
     """
     async with httpx.AsyncClient() as client:
-        # Get deals from CheapShark
         url = "https://www.cheapshark.com/api/1.0/deals"
         params = {"pageSize": 20}
         if search:
@@ -123,7 +125,7 @@ def load_price(price: GamePrice, prices_db: list) -> None:
 
 # ============== PIPELINE ==============
 
-async def run_etl_pipeline(search: Optional[str] = None, rawg_api_key: Optional[str] = None) -> dict:
+async def run_etl_pipeline(search: Optional[str] = None) -> dict:
     """
     Run the full ETL pipeline.
     
@@ -146,16 +148,15 @@ async def run_etl_pipeline(search: Optional[str] = None, rawg_api_key: Optional[
     except Exception as e:
         print(f"CheapShark ETL error: {e}")
     
-    # Extract and process RAWG games (if API key provided)
-    if rawg_api_key:
-        try:
-            rawg_games = await extract_from_rawg(search, rawg_api_key)
-            for raw_game in rawg_games:
-                game = transform_rawg_game(raw_game)
-                load_game(game, games_db)
-                games_added += 1
-        except Exception as e:
-            print(f"RAWG ETL error: {e}")
+    # Extract and process RAWG games
+    try:
+        rawg_games = await extract_from_rawg(search, RAWG_API_KEY)
+        for raw_game in rawg_games:
+            game = transform_rawg_game(raw_game)
+            load_game(game, games_db)
+            games_added += 1
+    except Exception as e:
+        print(f"RAWG ETL error: {e}")
     
     return {
         "status": "completed",
