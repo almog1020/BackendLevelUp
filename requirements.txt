@@ -1,7 +1,11 @@
 fastapi[standard]
 uvicorn[standard]
 pydantic
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+httpx
 sqlmodel
 psycopg2
 google-auth
-requests
+python-dotenv
