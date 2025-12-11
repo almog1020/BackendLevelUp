@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual Environment
+venv/
+env/
+.venv
+
+# Environment variables
+.env
+
+# Database
+*.db
+levelup.db
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
