@@ -164,3 +164,5 @@ async def run_etl_pipeline(search: Optional[str] = None, rawg_api_key: Optional[
         "prices_processed": prices_added,
     }
 
+
+

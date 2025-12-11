@@ -66,3 +66,5 @@ async def get_game_prices(game_id: str):
     
     return [p for p in prices_db if p["game_id"] == game_id]
 
+
+
