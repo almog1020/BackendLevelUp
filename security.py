@@ -44,6 +44,3 @@ def sanitize_input(text: str) -> str:
     if len(text) > 1000:
         text = text[:1000]
     return text
-
-
-
