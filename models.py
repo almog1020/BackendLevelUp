@@ -19,3 +19,7 @@ class User(Base):
         Index("idx_users_username", "username"),
         Index("idx_users_role", "role"),
     )
+
+
+# Add more models below as needed
+__all__ = ["User"]
