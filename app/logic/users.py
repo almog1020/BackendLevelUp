@@ -1,14 +1,10 @@
+from fastapi import HTTPException,status
 from sqlmodel import Session, select
-
 from app.db import engine
-from app.models.users import User, UserBase
-from typing import Optional, Dict, List
-from app.schemas import UserRole
+from app.logic.auth import verify_password, hash_password
+from app.models.users import User, UserBase, UserRegister
+from typing import Dict, List
 
-# In-memory database (replace with Postgres later)
-# Users: {username: {id, username, email, hashed_password, role}}
-fake_users_db: Dict[str, dict] = {}
-user_id_counter = 1
 
 # Games: {game_id: {id, title, genre, image_url}}
 games_db: Dict[str, dict] = {}
@@ -18,36 +14,94 @@ prices_db: List[dict] = []
 
 
 def select_user(user: UserBase) -> User | None:
-    """Pull out the user from the database"""
+    """Pull out the user from the database and verify password"""
     with Session(engine) as session:
-        statement = select(User).where(User.email == user.email).where(User.password == user.password)
-        results = session.exec(statement)
-        return results.first()
+        statement = select(User).where(User.email == user.email)
+        db_user = session.exec(statement).first()
 
-def get_user_by_username(username: str) -> Optional[dict]:
-    """Get a user by username."""
-    return fake_users_db.get(username)
+        if db_user and user.password:
+            if db_user.password and verify_password(user.password, db_user.password):
+                return db_user
+        elif db_user and not user.password:
+            # For OAuth users without password
+            return db_user
 
-
-def get_user_by_email(email: str) -> Optional[dict]:
-    """Get a user by email."""
-    for user in fake_users_db.values():
-        if user["email"] == email:
-            return user
-    return None
+        return None
 
 
-def create_user(username: str, email: str, hashed_password: str) -> dict:
-    """Create a new user."""
-    global user_id_counter
+def get_user_by_email(email: str) -> User | None:
+    """Get user by email"""
+    with Session(engine) as session:
+        statement = select(User).where(User.email == email)
+        return session.exec(statement).first()
 
-    user = {
-        "id": user_id_counter,
-        "username": username,
-        "email": email,
-        "hashed_password": hashed_password,
-        "role": UserRole.USER,  # Default role
-    }
-    fake_users_db[username] = user
-    user_id_counter += 1
-    return user
+
+def get_user_by_google_id(google_id: str) -> User | None:
+    """Get user by Google ID"""
+    with Session(engine) as session:
+        statement = select(User).where(User.google_id == google_id)
+        return session.exec(statement).first()
+
+
+def create_user(user_data: UserRegister) -> User:
+    """Create a new user with hashed password"""
+    with Session(engine) as session:
+        # Check if email already exists
+        existing_user = get_user_by_email(user_data.email)
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+
+        # Hash password
+        hashed_password = hash_password(user_data.password)
+
+        # Create new user
+        new_user = User(
+            email=user_data.email,
+            password=hashed_password,
+            name=user_data.name
+        )
+
+        session.add(new_user)
+        session.commit()
+        session.refresh(new_user)
+
+        return new_user
+
+
+def create_user_from_google(email: str, name: str | None, google_id: str, picture: str | None = None) -> User:
+    """Create a new user from Google OAuth data"""
+    with Session(engine) as session:
+        # Check if user already exists by email or google_id
+        existing_user = get_user_by_email(email)
+        if existing_user:
+            # Update google_id if not set
+            if not existing_user.google_id:
+                existing_user.google_id = google_id
+                session.add(existing_user)
+                session.commit()
+                session.refresh(existing_user)
+            return existing_user
+
+        existing_google_user = get_user_by_google_id(google_id)
+        if existing_google_user:
+            return existing_google_user
+
+        # Create new user
+        new_user = User(
+            email=email,
+            name=name,
+            google_id=google_id,
+            password=None  # No password for OAuth users
+        )
+
+        session.add(new_user)
+        session.commit()
+        session.refresh(new_user)
+
+        return new_user
+
+
+
