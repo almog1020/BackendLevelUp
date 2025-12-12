@@ -10,7 +10,7 @@ import httpx
 from typing import Optional
 from datetime import datetime
 
-from schemas import Game, GamePrice
+from app.schemas import Game, GamePrice
 
 
 # ============== EXTRACT ==============
