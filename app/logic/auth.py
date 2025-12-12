@@ -6,6 +6,8 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
+
+
 # Security config - in production, use environment variables!
 SECRET_KEY = "your-secret-key-change-in-production"
 ALGORITHM = "HS256"
@@ -48,7 +50,7 @@ def decode_token(token: str) -> Optional[str]:
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     """Dependency to get the current authenticated user."""
-    from database import get_user_by_username  # Import here to avoid circular imports
+    #from db import get_user_by_username  # Import here to avoid circular imports
     
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
