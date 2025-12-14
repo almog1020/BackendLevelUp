@@ -60,4 +60,3 @@ class UserResponse(BaseModel):
 class LoginResponse(BaseModel):
     message: str
     role: str
-

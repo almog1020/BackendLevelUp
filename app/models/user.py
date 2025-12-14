@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, UniqueConstraint, Index
-from database import Base
+from app.core.database import Base
 
 
 class User(Base):
@@ -20,6 +20,3 @@ class User(Base):
         Index("idx_users_role", "role"),
     )
 
-
-# Add more models below as needed
-__all__ = ["User"]
