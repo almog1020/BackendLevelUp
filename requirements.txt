@@ -1,13 +1,31 @@
+# FastAPI and server
 fastapi[standard]
 uvicorn[standard]
-pydantic
-python-jose[cryptography]
-passlib[bcrypt]
 python-multipart
-httpx
+
+# Pydantic (validation)
+pydantic[email]
+pydantic-settings
+
+# Database
+sqlalchemy
 sqlmodel
 psycopg2-binary
-google-auth
-requests
+
+# Authentication & Security
+python-jose[cryptography]
+passlib[bcrypt]
 bcrypt
+
+# HTTP clients
+httpx
+requests
+
+# Google OAuth
+google-auth
+
+# Environment variables
 python-dotenv
+
+# Email validation
+email-validator
