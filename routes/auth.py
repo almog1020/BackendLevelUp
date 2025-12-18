@@ -11,7 +11,7 @@ from auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
 )
 from database import get_user_by_username, get_user_by_email, create_user
-from schemas import UserCreate, UserResponse, Token, UserRole
+from schemas import UserCreate, UserResponse, Token
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
