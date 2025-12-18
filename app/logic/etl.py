@@ -10,7 +10,7 @@ import httpx
 from typing import Optional
 from datetime import datetime
 
-from schemas import Game, GamePrice
+from app.schemas import Game, GamePrice
 
 # RAWG API Key
 RAWG_API_KEY = "1aae403692eb4b459afc2cb34f6d4eaf"

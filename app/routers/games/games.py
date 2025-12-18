@@ -1,11 +1,9 @@
 from typing import Optional
-
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-
-from auth import get_current_user
-from database import games_db, prices_db
-from schemas import Game, GamePrice, GameWithPrices
-from etl import run_etl_pipeline
+from app.logic.auth import get_current_user
+from app.logic.users import games_db, prices_db
+from app.schemas import Game, GamePrice, GameWithPrices
+from app.logic.etl import run_etl_pipeline
 
 router = APIRouter(prefix="/games", tags=["Games"])
 
