@@ -1,19 +1,53 @@
-from fastapi import HTTPException,status
+from fastapi import HTTPException, status, Depends
+from pydantic import EmailStr
+from sqlalchemy import Engine
 from sqlmodel import Session, select
-from app.db import engine
-from app.logic.auth import verify_password, hash_password
+
+from app.dependencies import ActiveEngine
+from app.logic.auth import verify_password, hash_password, get_current_username
 from app.models.users import User, UserBase, UserRegister
-from typing import Dict, List
+from typing import Sequence, Annotated
+from app.schemas import UserRole, UserStatus
+
+def get_current_user(engine: ActiveEngine, username: Annotated[str, Depends(get_current_username)]) -> User:
+    user = get_user_by_username(engine, username)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return user
+
+def update_user(*, engine: Engine, edit_user: UserBase, email: EmailStr):
+    with Session(engine) as session:
+        statement = select(User).where(User.email == email)
+        user = session.exec(statement).one()
+
+        user.email = email
+        user.role = edit_user.role
+        user.status = edit_user.status
+        user.purchase = edit_user.purchase
+
+        session.add(user)
+        session.commit()
 
 
-# Games: {game_id: {id, title, genre, image_url}}
-games_db: Dict[str, dict] = {}
+def delete_user_by_email(engine:Engine,email: EmailStr):
+    with Session(engine) as session:
+        statement = select(User).where(User.email == email)
+        user = session.exec(statement).first()
+        session.delete(user)
+        session.commit()
 
-# Prices: [{game_id, store, price, currency, url}]
-prices_db: List[dict] = []
+
+def select_users(engine:Engine) -> Sequence[User]:
+    with Session(engine) as session:
+        return session.exec(select(User).order_by(User.id)).all()
 
 
-def select_user(user: UserBase) -> User | None:
+def select_user(engine:Engine,user: UserBase) -> User | None:
     """Pull out the user from the database and verify password"""
     with Session(engine) as session:
         statement = select(User).where(User.email == user.email)
@@ -28,26 +62,31 @@ def select_user(user: UserBase) -> User | None:
 
         return None
 
+def get_user_by_username(engine:Engine,name: str) -> User | None:
+    """Get user by name"""
+    with Session(engine) as session:
+        statement = select(User).where(User.name == name)
+        return session.exec(statement).first()
 
-def get_user_by_email(email: str) -> User | None:
+def get_user_by_email(engine:Engine,email: EmailStr) -> User | None:
     """Get user by email"""
     with Session(engine) as session:
         statement = select(User).where(User.email == email)
         return session.exec(statement).first()
 
 
-def get_user_by_google_id(google_id: str) -> User | None:
+def get_user_by_google_id(engine:Engine,google_id: str) -> User | None:
     """Get user by Google ID"""
     with Session(engine) as session:
         statement = select(User).where(User.google_id == google_id)
         return session.exec(statement).first()
 
 
-def create_user(user_data: UserRegister) -> User:
+def create_user(engine:Engine,user_data: UserRegister) -> User:
     """Create a new user with hashed password"""
     with Session(engine) as session:
         # Check if email already exists
-        existing_user = get_user_by_email(user_data.email)
+        existing_user = get_user_by_email(engine,user_data.email)
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -61,7 +100,10 @@ def create_user(user_data: UserRegister) -> User:
         new_user = User(
             email=user_data.email,
             password=hashed_password,
-            name=user_data.name
+            name=user_data.name,
+            role=UserRole.USER,
+            status=UserStatus.ACTIVE,
+            purchase=0
         )
 
         session.add(new_user)
@@ -71,11 +113,11 @@ def create_user(user_data: UserRegister) -> User:
         return new_user
 
 
-def create_user_from_google(email: str, name: str | None, google_id: str, picture: str | None = None) -> User:
+def create_user_from_google(engine:Engine,email: EmailStr, name: str | None, google_id: str, picture: str | None = None) -> User:
     """Create a new user from Google OAuth data"""
     with Session(engine) as session:
         # Check if user already exists by email or google_id
-        existing_user = get_user_by_email(email)
+        existing_user = get_user_by_email(engine,email)
         if existing_user:
             # Update google_id if not set
             if not existing_user.google_id:
@@ -85,7 +127,7 @@ def create_user_from_google(email: str, name: str | None, google_id: str, pictur
                 session.refresh(existing_user)
             return existing_user
 
-        existing_google_user = get_user_by_google_id(google_id)
+        existing_google_user = get_user_by_google_id(engine,google_id)
         if existing_google_user:
             return existing_google_user
 
@@ -94,7 +136,10 @@ def create_user_from_google(email: str, name: str | None, google_id: str, pictur
             email=email,
             name=name,
             google_id=google_id,
-            password=None  # No password for OAuth users
+            password=None,  # No password for OAuth users
+            status=UserStatus.ACTIVE,
+            purchase=0,
+            role=UserRole.USER
         )
 
         session.add(new_user)
@@ -102,6 +147,3 @@ def create_user_from_google(email: str, name: str | None, google_id: str, pictur
         session.refresh(new_user)
 
         return new_user
-
-
-

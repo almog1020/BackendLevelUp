@@ -1,17 +1,17 @@
 import os
+from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.dependencies import ActiveEngine
 from app.logic.auth import (
     hash_password,
     verify_password,
     create_access_token,
-    get_current_user,
     ACCESS_TOKEN_EXPIRE_MINUTES,
 )
-from database import get_user_by_username, get_user_by_email, create_user
 from app.schemas import UserCreate, UserResponse, Token
 from dotenv import load_dotenv
 from pydantic import BaseModel
@@ -20,9 +20,9 @@ from google.auth.transport import requests
 
 from sqlmodel import Session, select
 
-from app.logic.users import create_user_from_google, get_user_by_email, get_user_by_google_id
-from app.models.users import UserResponse, User
-from app.db import engine
+from app.logic.users import create_user_from_google, get_user_by_email, get_user_by_google_id, get_user_by_username, \
+    create_user, get_current_user
+from app.models.users import UserResponse, User, UserRegister
 
 router = APIRouter(
     prefix="/auth",
@@ -36,7 +36,7 @@ class TokenRequest(BaseModel):
     token: str
 
 @router.post("/google", response_model=UserResponse)
-async def google_auth(data: TokenRequest):
+async def google_auth(engine: ActiveEngine, data: TokenRequest):
     """Login or signup with Google authentication"""
     try:
         id_info = id_token.verify_oauth2_token(
@@ -51,7 +51,7 @@ async def google_auth(data: TokenRequest):
         picture = id_info.get("picture")
         
         # Check if user exists by email or google_id
-        user = get_user_by_email(email) or get_user_by_google_id(google_id)
+        user = get_user_by_email(engine,email) or get_user_by_google_id(engine,google_id)
         
         if user:
             # Existing user - login flow
@@ -74,8 +74,8 @@ async def google_auth(data: TokenRequest):
         return UserResponse(
             id=user.id,
             email=user.email,
-            name=user.name,
-            google_id=user.google_id
+            username=user.name,
+            role=user.role,
         )
 
     except HTTPException:
@@ -85,25 +85,28 @@ async def google_auth(data: TokenRequest):
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def register(user_data: UserCreate):
+async def register(engine: ActiveEngine, user_data: UserCreate):
     """Register a new user."""
     # Check if username exists
-    if get_user_by_username(user_data.username):
+    if get_user_by_username(engine,user_data.username):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already registered"
         )
 
     # Check if email exists
-    if get_user_by_email(user_data.email):
+    if get_user_by_email(engine,user_data.email):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
         )
 
-    # Create user with hashed password
-    hashed_password = hash_password(user_data.password)
-    user = create_user(user_data.username, user_data.email, hashed_password)
+    user_data = UserRegister(
+        email=user_data.email,
+        name=user_data.username,
+        password=hash_password(user_data.password)
+    )
+    user = create_user(engine,user_data)
 
     return UserResponse(
         id=user["id"],
@@ -114,9 +117,9 @@ async def register(user_data: UserCreate):
 
 
 @router.post("/login", response_model=Token)
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+async def login(engine: ActiveEngine,form_data: OAuth2PasswordRequestForm = Depends()):
     """Login and get access token."""
-    user = get_user_by_username(form_data.username)
+    user = get_user_by_username(engine,form_data.username)
 
     if not user or not verify_password(form_data.password, user["hashed_password"]):
         raise HTTPException(
@@ -135,7 +138,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_me(current_user: dict = Depends(get_current_user)):
+async def get_me(current_user: Annotated[dict, Depends(get_current_user)]):
     """Get current authenticated user."""
     return UserResponse(
         id=current_user["id"],

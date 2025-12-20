@@ -1,6 +1,11 @@
-from fastapi import APIRouter, HTTPException, status
-from app.logic.users import select_user, create_user
-from app.models.users import User, UserBase, UserRegister, UserResponse
+from typing import Annotated
+
+from fastapi import APIRouter, HTTPException, status, Path
+from pydantic import EmailStr
+
+from app.dependencies import ActiveEngine
+from app.logic.users import select_user, create_user, select_users, delete_user_by_email, update_user
+from app.models.users import UserBase, UserRegister, UserResponse
 
 router = APIRouter(
     prefix="/users",
@@ -8,36 +13,50 @@ router = APIRouter(
     responses={status.HTTP_404_NOT_FOUND: {"description": "Not found"}},
 )
 
+
 @router.post('/login', response_model=UserResponse)
-async def login(user: UserBase) -> UserResponse:
+async def login(engine: ActiveEngine, user: UserBase) -> UserResponse:
     """Login with email and password"""
-    db_user = select_user(user)
-    if db_user:
-        return UserResponse(
-            id=db_user.id,
-            email=db_user.email,
-            name=db_user.name,
-            google_id=db_user.google_id
-        )
-    else:
+    user = select_user(engine,user)
+    if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Incorrect email or password")
+    return UserResponse(
+        email=user.email,
+        role=user.role,
+        google_id=user.google_id,
+        name=user.name,
+        id=user.id,
+    )
 
 
 @router.post('/register', response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def register(user_data: UserRegister) -> UserResponse:
+async def register(engine: ActiveEngine, user_data: UserRegister) -> UserResponse:
     """Register a new user"""
-    try:
-        new_user = create_user(user_data)
-        return UserResponse(
-            id=new_user.id,
-            email=new_user.email,
-            name=new_user.name,
-            google_id=new_user.google_id
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create user: {str(e)}"
-        )
+    new_user = create_user(engine,user_data)
+    return UserResponse(
+        id=new_user.id,
+        email=new_user.email,
+        name=new_user.name,
+        google_id=new_user.google_id,
+        role=new_user.role
+    )
+
+
+@router.get('/',status_code=status.HTTP_200_OK)
+async def get_users(engine: ActiveEngine):
+    return select_users(engine)
+
+
+@router.delete('/{email}', status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user(engine: ActiveEngine, email: EmailStr):
+    delete_user_by_email(engine,email)
+
+
+
+@router.put('/{email}', status_code=status.HTTP_202_ACCEPTED)
+async def edit_user(engine: ActiveEngine, email: Annotated[EmailStr, Path()], user: UserBase):
+    update_user(
+        engine=engine,
+        edit_user=user,
+        email=email
+    )

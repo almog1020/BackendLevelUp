@@ -2,12 +2,12 @@ fastapi[standard]
 uvicorn[standard]
 pydantic
 python-jose[cryptography]
-passlib[bcrypt]
+bcrypt
 python-multipart
 httpx
 sqlmodel
 psycopg2-binary
 google-auth
 requests
-bcrypt
 python-dotenv
+websockets
