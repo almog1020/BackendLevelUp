@@ -1,4 +1,3 @@
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -152,8 +151,8 @@ activemq-data/
 .env
 .envrc
 .venv
-env/
 venv/
+env/
 ENV/
 env.bak/
 venv.bak/
@@ -215,3 +214,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Database
+*.db
+levelup.db
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
