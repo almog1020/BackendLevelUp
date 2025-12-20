@@ -14,7 +14,6 @@ psycopg2-binary
 
 # Authentication & Security
 python-jose[cryptography]
-passlib[bcrypt]
 bcrypt
 
 # HTTP clients
@@ -26,6 +25,4 @@ google-auth
 
 # Environment variables
 python-dotenv
-
-# Email validation
-email-validator
+websockets

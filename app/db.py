@@ -1,9 +1,9 @@
-from sqlmodel import create_engine, SQLModel
+from sqlalchemy import Engine
+from sqlmodel import SQLModel
 
 #db localhost
 postgresql_url = "postgresql://Almog:1999@127.0.0.1:5432/levelup"
-engine = create_engine(postgresql_url, echo=True)
 
-def create_db_and_tables():
+def create_db_and_tables(engine: Engine):
     SQLModel.metadata.create_all(engine)
 
