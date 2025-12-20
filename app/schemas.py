@@ -1,14 +1,17 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
-from enum import Enum
+from enum import Enum, auto, StrEnum
 
 
-class UserRole(str, Enum):
+class UserRole(StrEnum):
     """User permission tiers."""
-    GUEST = "guest"
-    USER = "user"
-    ADMIN = "admin"
+    USER = auto()
+    ADMIN = auto()
 
+class UserStatus(StrEnum):
+    """User status tiers."""
+    ACTIVE = auto()
+    SUSPENDED = auto()
 
 # Request schemas
 class UserCreate(BaseModel):
