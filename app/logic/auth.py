@@ -1,17 +1,17 @@
+import os
 from datetime import datetime, timedelta
 from typing import Optional
 
 import bcrypt
+from dotenv import load_dotenv
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 
-# Security config - in production, use environment variables!
-SECRET_KEY = "your-secret-key-change-in-production"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-# OAuth2 scheme
+
+load_dotenv()
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 
@@ -32,15 +32,15 @@ def hash_password(password: str) -> str:
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """Create a JWT access token."""
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=15))
+    expire = datetime.now() + (expires_delta or timedelta(minutes=15))
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(to_encode,os.environ["SECRET_KEY"] ,os.environ["ALGORITHM"])
 
 
 def decode_token(token: str) -> Optional[str]:
     """Decode a JWT token and return the username."""
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, os.environ["SECRET_KEY"] ,os.environ["ALGORITHM"])
         username: str = payload.get("sub")
         return username
     except JWTError:

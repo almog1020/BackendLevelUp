@@ -1,10 +1,21 @@
 import datetime
+from enum import  auto, StrEnum
 
 from sqlmodel import SQLModel, Field
-from pydantic import EmailStr
+from pydantic import EmailStr, BaseModel
 from typing import Optional
 
-from app.schemas import UserRole, UserStatus
+
+class UserRole(StrEnum):
+    """User permission tiers."""
+    USER = auto()
+    ADMIN = auto()
+
+
+class UserStatus(StrEnum):
+    """User status tiers."""
+    ACTIVE = auto()
+    SUSPENDED = auto()
 
 
 class UserBase(SQLModel):
@@ -28,13 +39,14 @@ class UserRegister(SQLModel):
     name: str = Field(min_length=1, max_length=255)
 
 
-class UserResponse(SQLModel):
+class UserResponse(BaseModel):
     """User response model without password"""
     id: int
     email: EmailStr
     name: Optional[str] = None
     google_id: Optional[str] = None
     role: UserRole
+
 
 
 
