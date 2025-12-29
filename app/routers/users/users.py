@@ -1,32 +1,16 @@
 from typing import Annotated
-
-from fastapi import APIRouter, HTTPException, status, Path
+from fastapi import APIRouter, status, Path
 from pydantic import EmailStr
-
 from app.dependencies import ActiveEngine
-from app.logic.users import select_user, create_user, select_users, delete_user_by_email, update_user
+from app.logic.users import create_user, select_users, delete_user_by_email, update_user
 from app.models.users import UserBase, UserRegister, UserResponse
+
 
 router = APIRouter(
     prefix="/users",
     tags=["users"],
     responses={status.HTTP_404_NOT_FOUND: {"description": "Not found"}},
 )
-
-
-@router.post('/login', response_model=UserResponse)
-async def login(engine: ActiveEngine, user: UserBase) -> UserResponse:
-    """Login with email and password"""
-    user = select_user(engine,user)
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Incorrect email or password")
-    return UserResponse(
-        email=user.email,
-        role=user.role,
-        google_id=user.google_id,
-        name=user.name,
-        id=user.id,
-    )
 
 
 @router.post('/register', response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -60,3 +44,4 @@ async def edit_user(engine: ActiveEngine, email: Annotated[EmailStr, Path()], us
         edit_user=user,
         email=email
     )
+

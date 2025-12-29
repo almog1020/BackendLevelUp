@@ -1,7 +1,5 @@
 import asyncio
 from contextlib import asynccontextmanager
-from time import sleep
-
 from fastapi import FastAPI,WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.websockets import WebSocketDisconnect
@@ -32,10 +30,6 @@ app.add_middleware(
 
 app.include_router(users.router)
 app.include_router(auth.router)
-
-@app.get("/")
-async def root():
-    return {"message": "Hello World"}
 
 @app.websocket("/ws")
 async def websocket_endpoint(engine: ActiveEngine ,ws: WebSocket):

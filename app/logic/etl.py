@@ -10,7 +10,7 @@ import httpx
 from typing import Optional
 from datetime import datetime
 
-from app.schemas import Game, GamePrice
+from app.models.games import Game, GamePrice
 
 # RAWG API Key
 RAWG_API_KEY = "1aae403692eb4b459afc2cb34f6d4eaf"
@@ -131,7 +131,8 @@ async def run_etl_pipeline(search: Optional[str] = None) -> dict:
     
     Returns summary of extracted data.
     """
-    from database import games_db, prices_db
+    games_db = {}
+    prices_db = []
     
     games_added = 0
     prices_added = 0
@@ -160,7 +161,7 @@ async def run_etl_pipeline(search: Optional[str] = None) -> dict:
     
     return {
         "status": "completed",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now().isoformat(),
         "games_processed": games_added,
         "prices_processed": prices_added,
     }
