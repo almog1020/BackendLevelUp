@@ -131,7 +131,7 @@ async def run_etl_pipeline(search: Optional[str] = None) -> dict:
     
     Returns summary of extracted data.
     """
-    from database import games_db, prices_db
+    from app.db import games_db, prices_db
     
     games_added = 0
     prices_added = 0
