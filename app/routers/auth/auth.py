@@ -64,7 +64,7 @@ async def google_auth(engine: ActiveEngine, data: TokenRequest):
                     user = db_user
     else:
         # New user - signup flow
-        user = create_user_from_google(email, name, google_id, picture)
+        user = create_user_from_google(engine, email, name, google_id)
 
     return UserResponse(
         id=user.id,

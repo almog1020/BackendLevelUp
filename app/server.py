@@ -16,7 +16,8 @@ from app.routers.users import users
 async def lifespan(app: FastAPI):
     engine = create_engine(postgresql_url, echo=True)
     create_db_and_tables(engine)
-    yield {"engine": engine}
+    app.state.engine = engine
+    yield
     engine.dispose()
 app = FastAPI(lifespan=lifespan)
 

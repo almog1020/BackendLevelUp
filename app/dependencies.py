@@ -8,7 +8,7 @@ from starlette.requests import HTTPConnection
 
 
 async def get_engine(request: HTTPConnection) -> Engine:
-    return request.state.engine
+    return request.app.state.engine
 
 
 ActiveEngine = Annotated[Engine, Depends(get_engine)]
