@@ -16,17 +16,18 @@ class UserStatus(StrEnum):
     """User status tiers."""
     ACTIVE = auto()
     SUSPENDED = auto()
+    INACTIVE = auto()
 
 
 class UserBase(SQLModel):
     id: int | None = Field(default=None, primary_key=True)
     email: EmailStr
-    password: Optional[str] = Field(default=None, min_length=3, max_length=64)
-    name: Optional[str] = Field(default=None, max_length=255)
+    password:str | None = Field(default=None,min_length=3, max_length=1000)
+    name:str = Field(max_length=255)
     google_id: Optional[str] = Field(default=None, max_length=255)
-    role:UserRole
-    status:UserStatus
-    purchase:int
+    role: UserRole = Field(default=UserRole.USER)
+    status: UserStatus = Field(default=UserStatus.INACTIVE)
+    purchase:int = Field(default=0)
     joined: datetime.datetime = Field(default_factory=datetime.datetime.now)
 
 class User(UserBase, table=True):
@@ -35,7 +36,7 @@ class User(UserBase, table=True):
 
 class UserRegister(SQLModel):
     email: EmailStr
-    password: str = Field(min_length=3, max_length=64)
+    password: str | None = Field(default=None,min_length=3, max_length=1000)
     name: str = Field(min_length=1, max_length=255)
 
 
@@ -43,9 +44,10 @@ class UserResponse(BaseModel):
     """User response model without password"""
     id: int
     email: EmailStr
-    name: Optional[str] = None
+    name: str
     google_id: Optional[str] = None
     role: UserRole
+    status: UserStatus
 
 
 
