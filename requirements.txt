@@ -14,7 +14,8 @@ psycopg2-binary
 
 # Authentication & Security
 python-jose[cryptography]
-bcrypt
+pyjwt
+pwdlib[argon2]
 
 # HTTP clients
 httpx
