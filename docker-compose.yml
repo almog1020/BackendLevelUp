@@ -1,26 +1,8 @@
-version: '3.8'
-
 services:
-  db:
-    image: postgres:16
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_USER: devuser
-      POSTGRES_PASSWORD: devpwd
-      POSTGRES_DB: levelup_db
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
   api:
     build: .
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql+psycopg2://devuser:devpwd@db:5432/levelup_db
-    depends_on:
-      - db
-
-volumes:
-  pgdata:
+      DATABASE_URL: postgresql://avnadmin:AVNS_GDPYnanorPwMj4E6qIm@levelup-db-tshukati4-efe7.h.aivencloud.com:14429/defaultdb?sslmode=require
 
