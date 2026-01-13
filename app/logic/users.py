@@ -1,24 +1,12 @@
 from fastapi import HTTPException, status, Depends
+from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import EmailStr
 from sqlalchemy import Engine
 from sqlmodel import Session, select
 
-from app.dependencies import ActiveEngine, ActiveUser
-from app.logic.auth import hash_password, get_current_username
+from app.logic.auth import get_password_hash
 from app.models.users import User, UserBase, UserRegister, UserRole, UserStatus
-from typing import Sequence, Annotated, TypeVar
-
-
-def get_current_user(engine: ActiveEngine, username: Annotated[str, Depends(get_current_username)]) -> User:
-    user = get_user_by_username(engine, username)
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    return user
+from typing import Sequence, Annotated
 
 
 def update_user(*, engine: Engine, edit_user: UserBase, email: EmailStr):
@@ -34,6 +22,15 @@ def update_user(*, engine: Engine, edit_user: UserBase, email: EmailStr):
         session.add(user)
         session.commit()
 
+def update_user_status(*, engine: Engine, disable: UserStatus, email: EmailStr):
+    with Session(engine) as session:
+        statement = select(User).where(User.email == email)
+        user = session.exec(statement).one()
+
+        user.status = disable
+
+        session.add(user)
+        session.commit()
 
 def delete_user_by_email(engine: Engine, email: EmailStr):
     with Session(engine) as session:
@@ -47,7 +44,7 @@ def select_users(engine: Engine) -> Sequence[User]:
     with Session(engine) as session:
         return session.exec(select(User).order_by(User.id)).all()
 
-def select_user(engine: Engine,user:ActiveUser) -> User | None:
+def select_user(engine: Engine,user:Annotated[OAuth2PasswordRequestForm, Depends()]) -> User | None:
     """Pull out the user from the database and verify password"""
     with Session(engine) as session:
         statement = select(User).where(User.email == user.username)
@@ -87,16 +84,13 @@ def create_user(engine: Engine, user_data: UserRegister) -> User:
             )
 
         # Hash password
-        hashed_password = hash_password(user_data.password)
+        hashed_password = get_password_hash(user_data.password)
 
         # Create new user
         new_user = User(
             email=user_data.email,
             password=hashed_password,
             name=user_data.name,
-            role=UserRole.USER,
-            status=UserStatus.ACTIVE,
-            purchase=0
         )
 
         session.add(new_user)
