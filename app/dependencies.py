@@ -19,7 +19,7 @@ from app.models.users import User, UserStatus
 async def get_engine(request: HTTPConnection) -> Engine:
     return request.state.engine
 
-
+ActiveEngine = Annotated[Engine, Depends(get_engine)]
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 
@@ -50,4 +50,4 @@ async def get_current_active_user(current_user: Annotated[User, Depends(get_curr
     return current_user
 
 
-ActiveEngine = Annotated[Engine, Depends(get_engine)]
+
