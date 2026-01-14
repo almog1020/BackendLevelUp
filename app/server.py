@@ -9,6 +9,7 @@ from app.dependencies import ActiveEngine
 from app.logic.users import select_users
 from app.routers.auth import auth
 from app.routers.users import users
+from app.routers.games import games
 
 
 
@@ -30,6 +31,7 @@ app.add_middleware(
 
 app.include_router(users.router)
 app.include_router(auth.router)
+app.include_router(games.router)
 
 @app.websocket("/ws")
 async def websocket_endpoint(engine: ActiveEngine ,ws: WebSocket):

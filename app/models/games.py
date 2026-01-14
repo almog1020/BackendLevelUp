@@ -19,3 +19,17 @@ class GamePrice(BaseModel):
 class GameWithPrices(BaseModel):
     game: Game
     prices: list[GamePrice]
+
+
+# Frontend Game Interface Response Model
+class GameResponse(BaseModel):
+    id: str
+    title: str
+    description: str
+    image: str
+    originalPrice: float
+    currentPrice: float
+    discount: float
+    genres: list[str]
+    isTrending: bool
+    isDealOfDay: bool
