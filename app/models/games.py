@@ -21,6 +21,12 @@ class GameWithPrices(BaseModel):
     prices: list[GamePrice]
 
 
+class PriceComparison(BaseModel):
+    store: str
+    price: float
+    url: Optional[str] = None
+
+
 # Frontend Game Interface Response Model
 class GameResponse(BaseModel):
     id: str
@@ -33,3 +39,4 @@ class GameResponse(BaseModel):
     genres: list[str]
     isTrending: bool
     isDealOfDay: bool
+    priceComparison: Optional[list[PriceComparison]] = None
