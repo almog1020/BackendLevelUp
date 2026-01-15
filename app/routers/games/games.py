@@ -36,6 +36,31 @@ async def fetch_cheapshark_games_search(query: str) -> list[dict]:
         return response.json()
 
 
+async def fetch_cheapshark_game_lookup(game_id: str) -> Optional[dict]:
+    """Lookup game info from CheapShark API by gameID using lookup endpoint."""
+    try:
+        async with httpx.AsyncClient() as client:
+            # Use the lookup endpoint - format: /games?id={gameID}
+            # According to CheapShark docs, this should return game info
+            url = f"https://www.cheapshark.com/api/1.0/games"
+            params = {"id": game_id}
+            response = await client.get(url, params=params, timeout=5.0)
+            response.raise_for_status()
+            data = response.json()
+            # The lookup endpoint returns a dict with gameID as key
+            if isinstance(data, dict):
+                # Check if gameID is in the response
+                if game_id in data:
+                    return data[game_id]
+                # Sometimes the response has the game data directly
+                if "gameID" in data and str(data.get("gameID")) == game_id:
+                    return data
+            return None
+    except Exception as e:
+        print(f"Lookup error for game {game_id}: {e}")
+        return None
+
+
 async def fetch_rawg_game_info(title: str) -> Optional[dict]:
     """Fetch game info from RAWG API for description and genres."""
     try:
@@ -229,5 +254,76 @@ async def search_games(q: str = Query(..., description="Search query")):
         return games
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to search games: {str(e)}")
+
+
+@router.get("/{game_id}", response_model=GameResponse, status_code=status.HTTP_200_OK)
+async def get_game_by_id(game_id: str):
+    """Fetch a single game by ID."""
+    try:
+        # Extract CheapShark gameID from our ID format (cs_123 -> 123)
+        if game_id.startswith("cs_"):
+            cheapshark_game_id = game_id.replace("cs_", "")
+            
+            # First, try to find in current deals
+            deals = await fetch_cheapshark_deals(page_size=100)
+            matching_deal = None
+            for deal in deals:
+                if str(deal.get("gameID", "")) == cheapshark_game_id:
+                    matching_deal = deal
+                    break
+            
+            # If not found in deals, try to get game info from lookup endpoint
+            if not matching_deal:
+                game_lookup = await fetch_cheapshark_game_lookup(cheapshark_game_id)
+                if game_lookup:
+                    # Create a deal-like structure from game lookup
+                    # The lookup returns game info with cheapest price
+                    cheapest = float(game_lookup.get("cheapest", 0))
+                    estimated_original = cheapest / 0.8 if cheapest > 0 else 0
+                    matching_deal = {
+                        "gameID": cheapshark_game_id,
+                        "title": game_lookup.get("external", "Unknown"),
+                        "thumb": game_lookup.get("thumb", ""),
+                        "salePrice": cheapest,
+                        "normalPrice": estimated_original,
+                        "savings": "20.0",  # Estimate
+                        "dealID": game_lookup.get("cheapestDealID", ""),
+                    }
+                else:
+                    # Last resort: try searching through more deals (up to 200)
+                    # Also try fetching without sort to get different results
+                    more_deals = await fetch_cheapshark_deals(page_size=200)
+                    for deal in more_deals:
+                        if str(deal.get("gameID", "")) == cheapshark_game_id:
+                            matching_deal = deal
+                            break
+                    
+                    if not matching_deal:
+                        # Try one more time with a different approach - search all deals
+                        # by fetching multiple pages
+                        for page in range(0, 3):  # Try first 3 pages
+                            try:
+                                page_deals = await fetch_cheapshark_deals(page_size=60)
+                                for deal in page_deals:
+                                    if str(deal.get("gameID", "")) == cheapshark_game_id:
+                                        matching_deal = deal
+                                        break
+                                if matching_deal:
+                                    break
+                            except:
+                                continue
+                    
+                    if not matching_deal:
+                        raise HTTPException(status_code=404, detail=f"Game with ID {game_id} not found. The game may no longer be available in current deals.")
+            
+            # Fetch RAWG info for detailed game page (with full description and genres)
+            game = await transform_deal_to_game_response(matching_deal, fetch_rawg=True)
+            return game
+        else:
+            raise HTTPException(status_code=404, detail=f"Invalid game ID format: {game_id}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch game: {str(e)}")
 
 
