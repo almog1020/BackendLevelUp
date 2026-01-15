@@ -3,14 +3,19 @@ from fastapi import APIRouter, Depends, status, Query, HTTPException
 import httpx
 import asyncio
 import re
+import os
+import logging
 from app.logic.etl import run_etl_pipeline
 from app.dependencies import get_current_user
 from app.models.games import GameResponse
 
 router = APIRouter(prefix="/games", tags=["Games"])
 
-# RAWG API Key
-RAWG_API_KEY = "1aae403692eb4b459afc2cb34f6d4eaf"
+logger = logging.getLogger(__name__)
+
+RAWG_API_KEY = os.getenv("RAWG_API_KEY")
+if not RAWG_API_KEY:
+    logger.warning("RAWG_API_KEY environment variable not set. RAWG API features will be disabled.")
 
 # Cache for store names (store_id -> store_name)
 _store_cache: dict[str, str] = {}
@@ -39,13 +44,11 @@ async def fetch_cheapshark_stores(force_refresh: bool = False) -> dict[str, str]
             response.raise_for_status()
             stores_data = response.json()
             
-            # Debug: log what we received
             if not isinstance(stores_data, list):
-                print(f"Warning: Expected list but got {type(stores_data)}")
+                logger.warning(f"Expected list but got {type(stores_data)}")
                 stores_data = []
             
             # Build mapping: storeID -> storeName
-            # Handle both string and integer store IDs
             for store in stores_data:
                 if not isinstance(store, dict):
                     continue
@@ -60,24 +63,19 @@ async def fetch_cheapshark_stores(force_refresh: bool = False) -> dict[str, str]
                     if store_id and store_name:
                         _store_cache[store_id] = store_name
             
-            # If we got stores, return them
             if _store_cache:
                 _store_cache_fetched = True
-                print(f"Successfully fetched {len(_store_cache)} stores from CheapShark")
-                # Debug: print first few stores
-                sample_stores = list(_store_cache.items())[:5]
-                print(f"Sample stores: {sample_stores}")
+                logger.info(f"Successfully fetched {len(_store_cache)} stores from CheapShark")
                 return _store_cache
             else:
-                print("Warning: No stores were parsed from CheapShark API response")
+                logger.warning("No stores were parsed from CheapShark API response")
             
     except httpx.HTTPError as e:
-        print(f"HTTP error fetching stores from CheapShark: {e}")
+        logger.error(f"HTTP error fetching stores from CheapShark: {e}")
     except Exception as e:
-        print(f"Error fetching stores from CheapShark: {type(e).__name__}: {e}")
+        logger.error(f"Error fetching stores from CheapShark: {type(e).__name__}: {e}")
     
     # Fallback mapping if API fails or returns no data
-    # Also store it in cache so we don't keep trying
     fallback_stores = {
         "1": "Steam",
         "2": "GamersGate",
@@ -89,7 +87,7 @@ async def fetch_cheapshark_stores(force_refresh: bool = False) -> dict[str, str]
         "25": "Epic Games",
     }
     _store_cache.update(fallback_stores)
-    print(f"Using fallback stores: {len(_store_cache)} stores available")
+    logger.info(f"Using fallback stores: {len(_store_cache)} stores available")
     return _store_cache
 
 async def fetch_cheapshark_deals(sort_by: Optional[str] = None, page_size: int = 60) -> list[dict]:
@@ -99,7 +97,6 @@ async def fetch_cheapshark_deals(sort_by: Optional[str] = None, page_size: int =
         params = {"pageSize": page_size}
         if sort_by:
             params["sortBy"] = sort_by
-        # Reduced timeout to fail faster if API is slow
         response = await client.get(url, params=params, timeout=5.0)
         response.raise_for_status()
         return response.json()
@@ -119,73 +116,59 @@ async def fetch_cheapshark_game_lookup(game_id: str) -> Optional[dict]:
     """Lookup game info from CheapShark API by gameID using lookup endpoint."""
     try:
         async with httpx.AsyncClient() as client:
-            # Use the lookup endpoint - format: /games?id={gameID}
-            # According to CheapShark docs, this should return game info
             url = f"https://www.cheapshark.com/api/1.0/games"
             params = {"id": game_id}
             response = await client.get(url, params=params, timeout=5.0)
             response.raise_for_status()
             data = response.json()
-            # The lookup endpoint returns a dict with gameID as key
             if isinstance(data, dict):
-                # Check if gameID is in the response
                 if game_id in data:
                     return data[game_id]
-                # Sometimes the response has the game data directly
                 if "gameID" in data and str(data.get("gameID")) == game_id:
                     return data
             return None
+    except httpx.HTTPError as e:
+        logger.error(f"HTTP error looking up game {game_id}: {e}")
+        return None
     except Exception as e:
-        print(f"Lookup error for game {game_id}: {e}")
+        logger.error(f"Lookup error for game {game_id}: {e}")
         return None
 
 
 async def fetch_price_comparison(game_id: str) -> list[dict]:
     """Fetch all deals for a game from different stores to compare prices."""
     try:
-        # Fetch store names first (will use cache if already fetched)
         stores_map = await fetch_cheapshark_stores()
         
-        # Fetch a large number of deals to find all stores selling this game
         async with httpx.AsyncClient() as client:
             url = "https://www.cheapshark.com/api/1.0/deals"
-            # Fetch more deals to increase chances of finding all stores
             params = {"pageSize": 200}
             response = await client.get(url, params=params, timeout=10.0)
             response.raise_for_status()
             all_deals = response.json()
             
-            # Filter deals for this specific game
             game_deals = [
                 deal for deal in all_deals 
                 if str(deal.get("gameID", "")) == game_id
             ]
             
-            # Extract unique store prices (keep the best price per store)
             store_prices = {}
             for deal in game_deals:
                 store_id_raw = deal.get("storeID")
                 sale_price = float(deal.get("salePrice", 0))
                 deal_id = deal.get("dealID", "")
                 
-                # Only include deals with valid prices
                 if sale_price > 0 and store_id_raw is not None:
-                    # Convert store ID to string (handle both int and str)
                     store_id = str(store_id_raw)
-                    
-                    # Get store name from the fetched stores map
                     store_name = stores_map.get(store_id, f"Store {store_id}")
                     
-                    # Debug: log if we're still getting "Store X" names
                     if store_name.startswith("Store "):
-                        print(f"Warning: Store ID {store_id} not found in stores map. Available stores: {list(stores_map.keys())[:10]}...")
+                        logger.warning(f"Store ID {store_id} not found in stores map. Available stores: {list(stores_map.keys())[:10]}...")
                     
-                    # Create deal URL using CheapShark redirect
                     deal_url = None
                     if deal_id:
                         deal_url = f"https://www.cheapshark.com/redirect?dealID={deal_id}"
                     
-                    # Keep the lowest price if multiple deals from same store
                     if store_name not in store_prices or sale_price < store_prices[store_name]["price"]:
                         store_prices[store_name] = {
                             "store": store_name,
@@ -193,20 +176,25 @@ async def fetch_price_comparison(game_id: str) -> list[dict]:
                             "url": deal_url
                         }
             
-            # Convert to list and sort by price
             price_comparison = sorted(
                 list(store_prices.values()),
                 key=lambda x: x["price"]
             )
             
             return price_comparison
+    except httpx.HTTPError as e:
+        logger.error(f"HTTP error fetching price comparison for game {game_id}: {e}")
+        return []
     except Exception as e:
-        print(f"Error fetching price comparison for game {game_id}: {e}")
+        logger.error(f"Error fetching price comparison for game {game_id}: {e}")
         return []
 
 
 async def fetch_rawg_game_info(title: str) -> Optional[dict]:
     """Fetch game info from RAWG API for description and genres."""
+    if not RAWG_API_KEY:
+        return None
+    
     try:
         async with httpx.AsyncClient() as client:
             search_url = "https://api.rawg.io/api/games"
@@ -228,14 +216,16 @@ async def fetch_rawg_game_info(title: str) -> Optional[dict]:
                     detail_params = {"key": RAWG_API_KEY}
                     detail_response = await client.get(detail_url, params=detail_params, timeout=2.0)
                     detail_response.raise_for_status()
-                    full_game_data = detail_response.json()
-                    return full_game_data
-                except Exception:
+                    return detail_response.json()
+                except (httpx.HTTPError, httpx.RequestError) as e:
+                    logger.warning(f"Failed to fetch RAWG game details for {title}: {e}")
                     return game_data
             
             return game_data
-    except Exception:
-        pass
+    except (httpx.HTTPError, httpx.RequestError) as e:
+        logger.warning(f"Failed to fetch RAWG game info for {title}: {e}")
+    except Exception as e:
+        logger.error(f"Unexpected error fetching RAWG game info for {title}: {e}")
     return None
 
 
@@ -245,36 +235,21 @@ async def fetch_rawg_image_only(title: str) -> Optional[str]:
         rawg_info = await asyncio.wait_for(fetch_rawg_game_info(title), timeout=2.0)
         if rawg_info:
             return rawg_info.get("background_image")
-    except (asyncio.TimeoutError, Exception):
-        pass
+    except asyncio.TimeoutError:
+        logger.warning(f"Timeout fetching RAWG image for {title}")
+    except Exception as e:
+        logger.warning(f"Error fetching RAWG image for {title}: {e}")
     return None
-
-
-async def fetch_rawg_images_parallel(titles: list[str], max_concurrent: int = 5) -> dict[str, Optional[str]]:
-    """Fetch RAWG images in parallel with concurrency limit."""
-    results = {}
-    
-    # Process in batches to limit concurrent requests
-    for i in range(0, len(titles), max_concurrent):
-        batch = titles[i:i + max_concurrent]
-        tasks = [fetch_rawg_image_only(title) for title in batch]
-        batch_results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        for title, result in zip(batch, batch_results):
-            if isinstance(result, Exception) or result is None:
-                results[title] = None
-            else:
-                results[title] = result
-    
-    return results
 
 
 # ============== TRANSFORM FUNCTIONS ==============
 
-async def get_store_name(store_id: str) -> str:
-    """Map CheapShark store IDs to names using dynamically fetched store list."""
-    stores_map = await fetch_cheapshark_stores()
-    return stores_map.get(str(store_id), f"Store {store_id}")
+def calculate_discount(savings_str: str, normal_price: float, sale_price: float) -> float:
+    """Calculate discount percentage from savings string or price difference."""
+    try:
+        return float(savings_str)
+    except (ValueError, TypeError):
+        return ((normal_price - sale_price) / normal_price * 100) if normal_price > 0 else 0
 
 
 async def transform_deal_to_game_response(deal: dict, is_trending: bool = False, is_deal_of_day: bool = False, fetch_rawg: bool = False, fetch_rawg_image: bool = False, price_comparison: Optional[list[dict]] = None) -> GameResponse:
@@ -283,27 +258,18 @@ async def transform_deal_to_game_response(deal: dict, is_trending: bool = False,
     title = deal.get("title", "Unknown")
     thumb = deal.get("thumb", "")
     
-    # Get prices
     sale_price = float(deal.get("salePrice", 0))
     normal_price = float(deal.get("normalPrice", sale_price))
-    
-    # Calculate discount
     savings_str = deal.get("savings", "0")
-    try:
-        discount = float(savings_str)
-    except (ValueError, TypeError):
-        discount = ((normal_price - sale_price) / normal_price * 100) if normal_price > 0 else 0
+    discount = calculate_discount(savings_str, normal_price, sale_price)
     
-    # Initialize defaults
     description = f"Experience {title} - Available now at great prices!"
-    genres = ["Action"]  # Default genre
-    image = thumb  # Default to CheapShark thumbnail
+    genres = ["Action"]
+    image = thumb
     
-    # Fetch RAWG info if requested (for full metadata or just images)
     if fetch_rawg or fetch_rawg_image:
         rawg_info = await fetch_rawg_game_info(title)
         if rawg_info:
-            # Use RAWG background_image if available (higher quality than thumb)
             rawg_image = rawg_info.get("background_image")
             if rawg_image:
                 image = rawg_image
@@ -329,7 +295,6 @@ async def transform_deal_to_game_response(deal: dict, is_trending: bool = False,
                 genres_list = rawg_info.get("genres", [])
                 genres = [g.get("name", "") for g in genres_list if g.get("name")] or ["Action"]
     
-    # Convert price comparison dicts to PriceComparison objects if provided
     price_comparison_list = None
     if price_comparison:
         from app.models.games import PriceComparison
@@ -350,45 +315,6 @@ async def transform_deal_to_game_response(deal: dict, is_trending: bool = False,
     )
 
 
-async def transform_game_search_to_response(game: dict) -> GameResponse:
-    """Transform CheapShark game search result to GameResponse format."""
-    game_id = f"cs_{game.get('gameID', '')}"
-    title = game.get("external", "Unknown")
-    thumb = game.get("thumb", "")
-    cheapest = float(game.get("cheapest", 0))
-    
-    # For search results, we don't have normalPrice, so estimate discount
-    # Assume 20% discount as placeholder (could fetch deal details for accuracy)
-    estimated_original = cheapest / 0.8 if cheapest > 0 else 0
-    discount = 20.0  # Placeholder
-    
-    # Default values
-    description = f"Experience {title} - Available now at great prices!"
-    genres = ["Action"]
-    image = thumb  # Default to CheapShark thumbnail
-    
-    # Fetch RAWG info for higher quality images
-    rawg_info = await fetch_rawg_game_info(title)
-    if rawg_info:
-        # Use RAWG background_image if available (higher quality than thumb)
-        rawg_image = rawg_info.get("background_image")
-        if rawg_image:
-            image = rawg_image
-    
-    return GameResponse(
-        id=game_id,
-        title=title,
-        description=description,
-        image=image,
-        originalPrice=estimated_original,
-        currentPrice=cheapest,
-        discount=discount,
-        genres=genres,
-        isTrending=False,
-        isDealOfDay=False,
-    )
-
-
 # ============== ENDPOINTS ==============
 
 @router.get("/health", status_code=status.HTTP_200_OK)
@@ -406,7 +332,7 @@ async def debug_stores(force_refresh: bool = Query(False, description="Force ref
         "cached_stores_count": len(_store_cache),
         "stores": stores_map,
         "sample": dict(list(stores_map.items())[:10]) if stores_map else {},
-        "all_store_ids": list(stores_map.keys())[:20]  # First 20 store IDs for debugging
+        "all_store_ids": list(stores_map.keys())[:20]
     }
 
 
@@ -429,12 +355,15 @@ async def get_all_games():
     try:
         deals = await fetch_cheapshark_deals(page_size=60)
         games = []
-        # Skip RAWG images for bulk endpoint to avoid timeout - use CheapShark thumbnails
         for deal in deals:
             game = await transform_deal_to_game_response(deal, fetch_rawg=False, fetch_rawg_image=False)
             games.append(game)
         return games
+    except httpx.HTTPError as e:
+        logger.error(f"HTTP error fetching games: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch games: {str(e)}")
     except Exception as e:
+        logger.error(f"Error fetching games: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch games: {str(e)}")
 
 
@@ -442,40 +371,17 @@ async def get_all_games():
 async def get_trending_games():
     """Fetch trending games (sorted by deal rating)."""
     try:
-        # Reduce page size to speed up response
         deals = await fetch_cheapshark_deals(sort_by="Deal Rating", page_size=10)
-        
-        # Return games immediately with CheapShark thumbnails (no RAWG delay)
         games = []
         for deal in deals:
-            title = deal.get("title", "")
-            game_id = f"cs_{deal.get('gameID', '')}"
-            thumb = deal.get("thumb", "")
-            
-            sale_price = float(deal.get("salePrice", 0))
-            normal_price = float(deal.get("normalPrice", sale_price))
-            savings_str = deal.get("savings", "0")
-            try:
-                discount = float(savings_str)
-            except (ValueError, TypeError):
-                discount = ((normal_price - sale_price) / normal_price * 100) if normal_price > 0 else 0
-            
-            game = GameResponse(
-                id=game_id,
-                title=title,
-                description=f"Experience {title} - Available now at great prices!",
-                image=thumb,  # Use CheapShark thumb immediately
-                originalPrice=normal_price,
-                currentPrice=sale_price,
-                discount=round(discount, 1),
-                genres=["Action"],
-                isTrending=True,
-                isDealOfDay=False,
-            )
+            game = await transform_deal_to_game_response(deal, is_trending=True, fetch_rawg=False, fetch_rawg_image=False)
             games.append(game)
-        
         return games
+    except httpx.HTTPError as e:
+        logger.error(f"HTTP error fetching trending games: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch trending games: {str(e)}")
     except Exception as e:
+        logger.error(f"Error fetching trending games: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch trending games: {str(e)}")
 
 
@@ -488,12 +394,15 @@ async def get_deal_of_the_day():
             raise HTTPException(status_code=404, detail="No deals found")
         
         deal = deals[0]
-        # Fetch RAWG info only for deal of the day (single game, so it's fast)
         game = await transform_deal_to_game_response(deal, is_deal_of_day=True, fetch_rawg=True)
         return game
     except HTTPException:
         raise
+    except httpx.HTTPError as e:
+        logger.error(f"HTTP error fetching deal of the day: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch deal of the day: {str(e)}")
     except Exception as e:
+        logger.error(f"Error fetching deal of the day: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch deal of the day: {str(e)}")
 
 
@@ -505,35 +414,30 @@ async def search_games(q: str = Query(..., description="Search query")):
     
     try:
         games_data = await fetch_cheapshark_games_search(q.strip())
-        games_data = games_data[:20]  # Limit to 20 results
+        games_data = games_data[:20]
         
-        # Return games immediately with CheapShark thumbnails (no RAWG delay)
         games = []
         for game_data in games_data:
-            game_id = f"cs_{game_data.get('gameID', '')}"
-            title = game_data.get("external", "Unknown")
-            thumb = game_data.get("thumb", "")
             cheapest = float(game_data.get("cheapest", 0))
-            
             estimated_original = cheapest / 0.8 if cheapest > 0 else 0
-            discount = 20.0  # Placeholder
             
-            game = GameResponse(
-                id=game_id,
-                title=title,
-                description=f"Experience {title} - Available now at great prices!",
-                image=thumb,  # Use CheapShark thumb immediately
-                originalPrice=estimated_original,
-                currentPrice=cheapest,
-                discount=discount,
-                genres=["Action"],
-                isTrending=False,
-                isDealOfDay=False,
-            )
+            deal_like = {
+                "gameID": game_data.get("gameID", ""),
+                "title": game_data.get("external", "Unknown"),
+                "thumb": game_data.get("thumb", ""),
+                "salePrice": cheapest,
+                "normalPrice": estimated_original,
+                "savings": "20.0",
+            }
+            game = await transform_deal_to_game_response(deal_like, fetch_rawg=False, fetch_rawg_image=False)
             games.append(game)
         
         return games
+    except httpx.HTTPError as e:
+        logger.error(f"HTTP error searching games: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to search games: {str(e)}")
     except Exception as e:
+        logger.error(f"Error searching games: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to search games: {str(e)}")
 
 
@@ -545,7 +449,6 @@ async def get_game_by_id(game_id: str):
         if game_id.startswith("cs_"):
             cheapshark_game_id = game_id.replace("cs_", "")
             
-            # First, try to find in current deals
             deals = await fetch_cheapshark_deals(page_size=100)
             matching_deal = None
             for deal in deals:
@@ -553,12 +456,9 @@ async def get_game_by_id(game_id: str):
                     matching_deal = deal
                     break
             
-            # If not found in deals, try to get game info from lookup endpoint
             if not matching_deal:
                 game_lookup = await fetch_cheapshark_game_lookup(cheapshark_game_id)
                 if game_lookup:
-                    # Create a deal-like structure from game lookup
-                    # The lookup returns game info with cheapest price
                     cheapest = float(game_lookup.get("cheapest", 0))
                     estimated_original = cheapest / 0.8 if cheapest > 0 else 0
                     matching_deal = {
@@ -567,12 +467,10 @@ async def get_game_by_id(game_id: str):
                         "thumb": game_lookup.get("thumb", ""),
                         "salePrice": cheapest,
                         "normalPrice": estimated_original,
-                        "savings": "20.0",  # Estimate
+                        "savings": "20.0",
                         "dealID": game_lookup.get("cheapestDealID", ""),
                     }
                 else:
-                    # Last resort: try searching through more deals (up to 200)
-                    # Also try fetching without sort to get different results
                     more_deals = await fetch_cheapshark_deals(page_size=200)
                     for deal in more_deals:
                         if str(deal.get("gameID", "")) == cheapshark_game_id:
@@ -580,9 +478,7 @@ async def get_game_by_id(game_id: str):
                             break
                     
                     if not matching_deal:
-                        # Try one more time with a different approach - search all deals
-                        # by fetching multiple pages
-                        for page in range(0, 3):  # Try first 3 pages
+                        for page in range(0, 3):
                             try:
                                 page_deals = await fetch_cheapshark_deals(page_size=60)
                                 for deal in page_deals:
@@ -591,23 +487,27 @@ async def get_game_by_id(game_id: str):
                                         break
                                 if matching_deal:
                                     break
-                            except:
+                            except httpx.HTTPError:
+                                continue
+                            except Exception as e:
+                                logger.warning(f"Error fetching page {page} for game lookup: {e}")
                                 continue
                     
                     if not matching_deal:
                         raise HTTPException(status_code=404, detail=f"Game with ID {game_id} not found. The game may no longer be available in current deals.")
             
-            # Fetch price comparison data from different stores
             price_comparison = await fetch_price_comparison(cheapshark_game_id)
-            
-            # Fetch RAWG info for detailed game page (with full description and genres)
             game = await transform_deal_to_game_response(matching_deal, fetch_rawg=True, price_comparison=price_comparison)
             return game
         else:
             raise HTTPException(status_code=404, detail=f"Invalid game ID format: {game_id}")
     except HTTPException:
         raise
+    except httpx.HTTPError as e:
+        logger.error(f"HTTP error fetching game {game_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch game: {str(e)}")
     except Exception as e:
+        logger.error(f"Error fetching game {game_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch game: {str(e)}")
 
 

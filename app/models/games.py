@@ -27,7 +27,6 @@ class PriceComparison(BaseModel):
     url: Optional[str] = None
 
 
-# Frontend Game Interface Response Model
 class GameResponse(BaseModel):
     id: str
     title: str
