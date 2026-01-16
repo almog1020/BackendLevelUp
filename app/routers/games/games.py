@@ -13,7 +13,7 @@ router = APIRouter(prefix="/games", tags=["Games"])
 
 logger = logging.getLogger(__name__)
 
-RAWG_API_KEY = os.getenv("RAWG_API_KEY")
+RAWG_API_KEY = "816e04be820c4c7bbf9ff0524c06a2ed"
 if not RAWG_API_KEY:
     logger.warning("RAWG_API_KEY environment variable not set. RAWG API features will be disabled.")
 
