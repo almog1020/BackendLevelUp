@@ -8,87 +8,23 @@ import logging
 from app.logic.etl import run_etl_pipeline
 from app.dependencies import get_current_user
 from app.models.games import GameResponse
+from app.logic.games.stores import fetch_cheapshark_stores
 
-router = APIRouter(prefix="/games", tags=["Games"])
+router = APIRouter(
+    prefix="/games",
+    tags=["Games"],
+    responses={
+        404: {"description": "Not found"}},
+)
 
 logger = logging.getLogger(__name__)
 
-RAWG_API_KEY = "816e04be820c4c7bbf9ff0524c06a2ed"
+RAWG_API_KEY = os.getenv("RAWG_API_KEY", "")
 if not RAWG_API_KEY:
     logger.warning("RAWG_API_KEY environment variable not set. RAWG API features will be disabled.")
 
-# Cache for store names (store_id -> store_name)
-_store_cache: dict[str, str] = {}
-_store_cache_fetched: bool = False
-
 
 # ============== EXTRACT FUNCTIONS ==============
-
-async def fetch_cheapshark_stores(force_refresh: bool = False) -> dict[str, str]:
-    """Fetch store names from CheapShark API and cache them."""
-    global _store_cache, _store_cache_fetched
-    
-    # Return cached data if available and not forcing refresh
-    if _store_cache and not force_refresh and _store_cache_fetched:
-        return _store_cache
-    
-    # Clear cache if forcing refresh
-    if force_refresh:
-        _store_cache.clear()
-        _store_cache_fetched = False
-    
-    try:
-        async with httpx.AsyncClient() as client:
-            url = "https://www.cheapshark.com/api/1.0/stores"
-            response = await client.get(url, timeout=10.0)
-            response.raise_for_status()
-            stores_data = response.json()
-            
-            if not isinstance(stores_data, list):
-                logger.warning(f"Expected list but got {type(stores_data)}")
-                stores_data = []
-            
-            # Build mapping: storeID -> storeName
-            for store in stores_data:
-                if not isinstance(store, dict):
-                    continue
-                    
-                # Try different possible field names
-                store_id_raw = store.get("storeID") or store.get("store_id") or store.get("id")
-                store_name = store.get("storeName") or store.get("store_name") or store.get("name") or ""
-                
-                # Convert store ID to string, handling both int and str
-                if store_id_raw is not None:
-                    store_id = str(store_id_raw)
-                    if store_id and store_name:
-                        _store_cache[store_id] = store_name
-            
-            if _store_cache:
-                _store_cache_fetched = True
-                logger.info(f"Successfully fetched {len(_store_cache)} stores from CheapShark")
-                return _store_cache
-            else:
-                logger.warning("No stores were parsed from CheapShark API response")
-            
-    except httpx.HTTPError as e:
-        logger.error(f"HTTP error fetching stores from CheapShark: {e}")
-    except Exception as e:
-        logger.error(f"Error fetching stores from CheapShark: {type(e).__name__}: {e}")
-    
-    # Fallback mapping if API fails or returns no data
-    fallback_stores = {
-        "1": "Steam",
-        "2": "GamersGate",
-        "3": "GreenManGaming",
-        "7": "GOG",
-        "8": "Origin",
-        "11": "Humble Store",
-        "13": "Uplay",
-        "25": "Epic Games",
-    }
-    _store_cache.update(fallback_stores)
-    logger.info(f"Using fallback stores: {len(_store_cache)} stores available")
-    return _store_cache
 
 async def fetch_cheapshark_deals(sort_by: Optional[str] = None, page_size: int = 60) -> list[dict]:
     """Fetch deals from CheapShark API."""
@@ -351,25 +287,6 @@ async def transform_deal_to_game_response(deal: dict, is_trending: bool = False,
 
 # ============== ENDPOINTS ==============
 
-@router.get("/health", status_code=status.HTTP_200_OK)
-async def health_check():
-    """Health check endpoint."""
-    return {"status": "ok", "message": "Games API is working"}
-
-
-@router.get("/debug/stores", status_code=status.HTTP_200_OK)
-async def debug_stores(force_refresh: bool = Query(False, description="Force refresh stores cache")):
-    """Debug endpoint to check store mappings."""
-    global _store_cache
-    stores_map = await fetch_cheapshark_stores(force_refresh=force_refresh)
-    return {
-        "cached_stores_count": len(_store_cache),
-        "stores": stores_map,
-        "sample": dict(list(stores_map.items())[:10]) if stores_map else {},
-        "all_store_ids": list(stores_map.keys())[:20]
-    }
-
-
 @router.post("/etl", status_code=status.HTTP_200_OK)
 async def trigger_etl(
     search: Optional[str] = Query(None, description="Search term to filter games"),
@@ -536,5 +453,4 @@ async def get_game_by_id(game_id: str):
     except Exception as e:
         logger.error(f"Error fetching game {game_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch game: {str(e)}")
-
 
