@@ -1,7 +1,5 @@
 import asyncio
 from contextlib import asynccontextmanager
-from time import sleep
-
 from fastapi import FastAPI,WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.websockets import WebSocketDisconnect
@@ -28,8 +26,13 @@ app = FastAPI(lifespan=lifespan)
 # DEV ONLY — CORS configuration (restrict origins in production)
 app.add_middleware(
     CORSMiddleware,
+<<<<<<< HEAD
     allow_origins=["*"],
     allow_credentials=False,  # Must be False when allow_origins=["*"]
+=======
+    allow_origins=['http://localhost:5173','https://frontend-level-up-delta.vercel.app'],
+    allow_credentials=True,
+>>>>>>> main
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -40,6 +43,7 @@ app.include_router(admin_games_router)
 app.include_router(admin_genres_router)
 app.include_router(admin_topdeals_router)
 
+<<<<<<< HEAD
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
@@ -50,6 +54,8 @@ async def health():
     """Health check endpoint"""
     return {"status": "ok"}
 
+=======
+>>>>>>> main
 @app.websocket("/ws")
 async def websocket_endpoint(engine: ActiveEngine ,ws: WebSocket):
     await ws.accept()

@@ -1,4 +1,5 @@
 import os
+<<<<<<< HEAD
 from sqlalchemy import Engine
 from sqlmodel import SQLModel
 
@@ -15,6 +16,13 @@ if database_url:
     else:
         postgresql_url = database_url
 
+=======
+
+from sqlalchemy import Engine
+from sqlmodel import SQLModel
+
+postgresql_url = os.getenv("DATABASE_URL", default="postgresql://Almog:1999@127.0.0.1:5432/levelup")
+>>>>>>> main
 def create_db_and_tables(engine: Engine):
     SQLModel.metadata.create_all(engine)
 
