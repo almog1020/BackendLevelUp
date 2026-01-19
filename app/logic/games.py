@@ -25,3 +25,4 @@ def get_game_by_id_from_dict(games_db: dict, game_id: str) -> Optional[dict]:
     Returns the game dict if found, None otherwise.
     """
     return games_db.get(game_id)
+

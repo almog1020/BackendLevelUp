@@ -20,6 +20,44 @@ def get_current_user(engine: ActiveEngine, username: Annotated[str, Depends(get_
 
     return user
 
+
+def require_admin(engine: ActiveEngine, user: User = Depends(get_current_user)):
+    """
+    Admin-only guard.
+
+    Uses get_current_user() to authenticate the request, then checks the user's role.
+    Supports role stored as:
+      - Enum (e.g., UserRole.ADMIN)   -> role.value or role.name
+      - String (e.g., "admin")
+    """
+
+    role_value = getattr(user, "role", None)
+
+    # If role is missing, block access
+    if role_value is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access only",
+        )
+
+    # Convert role to a comparable lowercase string
+    # If enum: role.value (preferred), else role.name; if string: itself
+    if hasattr(role_value, "value"):
+        role_str = str(role_value.value).lower()
+    elif hasattr(role_value, "name"):
+        role_str = str(role_value.name).lower()
+    else:
+        role_str = str(role_value).lower()
+
+    # Accept only admin
+    if role_str != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access only",
+        )
+
+    return user
+
 def update_user(*, engine: Engine, edit_user: UserBase, email: EmailStr):
     with Session(engine) as session:
         statement = select(User).where(User.email == email)

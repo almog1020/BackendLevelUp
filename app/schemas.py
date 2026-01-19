@@ -46,7 +46,8 @@ class TokenData(BaseModel):
 class Game(BaseModel):
     id: str
     title: str
-    genre: Optional[str] = None
+    genre: Optional[str] = None  # Legacy field, kept for backward compatibility
+    genres: list[str] = []  # Primary field for genres (list of genre names)
     image_url: Optional[str] = None
 
 

@@ -11,7 +11,9 @@ from app.dependencies import ActiveEngine
 from app.logic.users import select_users
 from app.routers.auth import auth
 from app.routers.users import users
-from app.routers.games import games
+from app.routers.admin.games import router as admin_games_router
+from app.routers.admin.genres import router as admin_genres_router
+from app.routers.admin.topdeals import router as admin_topdeals_router
 
 
 
@@ -23,25 +25,20 @@ async def lifespan(app: FastAPI):
     engine.dispose()
 app = FastAPI(lifespan=lifespan)
 
-# CORS configuration for local development
+# DEV ONLY — CORS configuration (restrict origins in production)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:5179",
-        "http://127.0.0.1:5179",
-        "http://host.docker.internal:5173",
-        "http://host.docker.internal:5179",
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,  # Must be False when allow_origins=["*"]
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 app.include_router(users.router)
 app.include_router(auth.router)
-app.include_router(games.router)
+app.include_router(admin_games_router)
+app.include_router(admin_genres_router)
+app.include_router(admin_topdeals_router)
 
 @app.get("/")
 async def root():
