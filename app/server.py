@@ -10,6 +10,8 @@ from app.logic.users import select_users
 from app.routers.auth import auth
 from app.routers.users import users
 from app.routers.purchases import purchases
+from app.routers.wishlist import wishlist
+from app.models.wishlist import Wishlist  # Import to register table
 
 
 
@@ -32,6 +34,7 @@ app.add_middleware(
 app.include_router(users.router)
 app.include_router(auth.router)
 app.include_router(purchases.router)
+app.include_router(wishlist.router)
 
 @app.websocket("/ws")
 async def websocket_endpoint(engine: ActiveEngine ,ws: WebSocket):
