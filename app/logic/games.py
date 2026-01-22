@@ -5,7 +5,7 @@ import re
 import os
 import logging
 from app.models.games import GameResponse
-from app.logic.games.stores import fetch_cheapshark_stores
+from app.logic.stores import fetch_cheapshark_stores
 
 logger = logging.getLogger(__name__)
 
