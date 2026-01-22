@@ -75,3 +75,4 @@ async def fetch_cheapshark_stores(force_refresh: bool = False) -> dict[str, str]
     logger.info(f"Using fallback stores: {len(_store_cache)} stores available")
     return _store_cache
 
+
