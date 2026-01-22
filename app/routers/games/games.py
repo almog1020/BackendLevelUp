@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, status, Query, HTTPException
 import logging
 from app.dependencies import get_current_user
 from app.models.games import GameResponse
-from app.logic.games.games import (
+from app.logic.games import (
     fetch_cheapshark_deals,
     fetch_cheapshark_games_search,
     fetch_cheapshark_game_lookup,
