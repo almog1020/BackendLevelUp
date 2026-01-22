@@ -9,7 +9,7 @@ from app.dependencies import ActiveEngine
 from app.logic.users import select_users
 from app.routers.auth import auth
 from app.routers.users import users
-from app.logic.games import games
+from app.routers.games import games
 
 
 
