@@ -6,6 +6,7 @@ from app.db import create_db_and_tables, postgresql_url
 from app.routers.auth import auth
 from app.routers.reviews import reviews
 from app.routers.users import users
+from app.routers.games import games
 
 
 @asynccontextmanager
@@ -26,6 +27,7 @@ app.add_middleware(
 
 app.include_router(users.router)
 app.include_router(auth.router)
+app.include_router(games.router)
 
 app.include_router(reviews.router)
 
