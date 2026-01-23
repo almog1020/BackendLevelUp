@@ -10,6 +10,7 @@ from app.logic.users import select_users
 from app.routers.auth import auth
 from app.routers.users import users
 from app.routers.purchases import purchases
+from app.routers.games import games
 
 
 
@@ -23,7 +24,7 @@ app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['*'],
+    allow_origins=['http://localhost:5173','https://frontend-level-up-delta.vercel.app'],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -32,6 +33,7 @@ app.add_middleware(
 app.include_router(users.router)
 app.include_router(auth.router)
 app.include_router(purchases.router)
+app.include_router(games.router)
 
 @app.websocket("/ws")
 async def websocket_endpoint(engine: ActiveEngine ,ws: WebSocket):

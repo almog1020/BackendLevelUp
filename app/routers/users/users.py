@@ -5,6 +5,12 @@ from app.dependencies import ActiveEngine
 from app.logic.users import create_user, select_users, delete_user_by_email, update_user, get_current_user
 from app.models.users import UserBase, UserRegister, UserResponse, User
 
+from fastapi import APIRouter, status, Path
+from fastapi.params import Depends
+from pydantic import EmailStr
+from app.dependencies import ActiveEngine, get_current_active_user
+from app.logic.users import create_user, select_users, delete_user_by_email, update_user, update_user_status
+from app.models.users import UserBase, UserRegister, UserResponse, User, UserStatus
 
 router = APIRouter(
     prefix="/users",
@@ -22,7 +28,8 @@ async def register(engine: ActiveEngine, user_data: UserRegister) -> UserRespons
         email=new_user.email,
         name=new_user.name,
         google_id=new_user.google_id,
-        role=new_user.role
+        role=new_user.role,
+        status=new_user.status
     )
 
 
@@ -43,6 +50,24 @@ async def edit_user(engine: ActiveEngine, email: Annotated[EmailStr, Path()], us
         engine=engine,
         edit_user=user,
         email=email
+    )
+@router.get('/me',status_code=status.HTTP_200_OK)
+async def get_me(current_user:Annotated[User, Depends(get_current_active_user)]):
+    return UserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        name=current_user.name,
+        google_id=current_user.google_id,
+        role=current_user.role,
+        status=current_user.status
+    )
+
+@router.put('/{email}/logout', status_code=status.HTTP_202_ACCEPTED)
+async def logout_user(engine: ActiveEngine,email: Annotated[EmailStr, Path()],disable:UserStatus):
+    update_user_status(
+        engine=engine,
+        email=email,
+        disable=disable
     )
 
 
