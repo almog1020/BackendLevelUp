@@ -18,15 +18,20 @@ def create_review(*, engine: Engine, review_data: ReviewBase) -> None:
 
 def select_reviews(*, engine: Engine) -> list[tuple[Review, User]]:
     with Session(engine) as session:
-        statement = select(Review, User).join(User)
+        statement = select(Review, User).join(User,isouter=True)
         results = session.exec(statement)
         return list(results)
 
-def get_game_reviews(*, engine: Engine, game: str) -> list[tuple[Review, User]]:
+def get_game_reviews(*, engine: Engine, game: str) -> list[dict[str, Any | None]]:
     with Session(engine) as session:
-        statement = select(Review, User).where(Review.game == game)
+        statement = select(Review, User).join(User,isouter=True).where(Review.game == game)
         results = session.exec(statement)
-        return [(user, review) for user, review in results]
+        return [
+                {"review": review, "user": user}
+                if user else
+                {"review": review, "user": None}
+                for review, user in list(results)
+            ]
 
 
 def delete_review(*, engine: Engine, review_id: int) -> None:

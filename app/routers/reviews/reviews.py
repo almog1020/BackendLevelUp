@@ -2,6 +2,7 @@ import asyncio
 import json
 
 from fastapi import APIRouter, HTTPException
+from sqlalchemy import null
 from starlette import status
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
@@ -28,7 +29,7 @@ async def read_reviews(engine: ActiveEngine):
 
 
 @router.get("/{game}", status_code=status.HTTP_200_OK)
-async def read_game_reviews(game: str, engine: ActiveEngine) -> list[tuple[Review, User]]:
+async def read_game_reviews(game: str, engine: ActiveEngine):
     return get_game_reviews(game=game, engine=engine)
 
 
@@ -50,6 +51,8 @@ async def get_reviews(engine: ActiveEngine, ws: WebSocket):
             reviews = select_reviews(engine=engine)
             await ws.send_json([
                 {"review": review.model_dump(mode='json'), "user": user.model_dump(mode="json")}
+                if user else
+                {"review": review.model_dump(mode='json'), "user": None}
                 for review, user in reviews
             ])
             await asyncio.sleep(5)
