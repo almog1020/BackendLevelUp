@@ -11,6 +11,7 @@ from app.logic.games import (
     transform_deal_to_game_response,
 )
 from app.logic.etl import run_etl_pipeline
+import asyncio
 
 router = APIRouter(
     prefix="/games",
@@ -58,7 +59,7 @@ async def get_trending_games():
     try:
         deals = await fetch_cheapshark_deals(sort_by="Deal Rating", page_size=10)
         # Process all games concurrently to avoid timeout issues
-        import asyncio
+
         game_tasks = [
             transform_deal_to_game_response(deal, is_trending=True, fetch_rawg=True)
             for deal in deals
