@@ -23,7 +23,11 @@ async def register(engine: ActiveEngine, user_data: UserRegister) -> UserRespons
         name=new_user.name,
         google_id=new_user.google_id,
         role=new_user.role,
-        status=new_user.status
+        status=new_user.status,
+        joined=new_user.joined,
+        lastActive=new_user.last_active,
+        purchase=new_user.purchase,
+        avatar=new_user.avatar
     )
 
 
@@ -45,15 +49,20 @@ async def edit_user(engine: ActiveEngine, email: Annotated[EmailStr, Path()], us
         edit_user=user,
         email=email
     )
-@router.get('/me',status_code=status.HTTP_200_OK)
+@router.get('/me',status_code=status.HTTP_200_OK, response_model=UserResponse)
 async def get_me(current_user:Annotated[User, Depends(get_current_active_user)]):
+    """Get current authenticated user's basic information"""
     return UserResponse(
         id=current_user.id,
         email=current_user.email,
         name=current_user.name,
         google_id=current_user.google_id,
         role=current_user.role,
-        status=current_user.status
+        status=current_user.status,
+        joined=current_user.joined,
+        lastActive=current_user.last_active,
+        purchase=current_user.purchase,
+        avatar=current_user.avatar
     )
 
 @router.put('/{email}/logout', status_code=status.HTTP_202_ACCEPTED)

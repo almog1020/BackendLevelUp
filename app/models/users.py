@@ -29,6 +29,10 @@ class UserBase(SQLModel):
     status: UserStatus = Field(default=UserStatus.INACTIVE)
     purchase:int = Field(default=0)
     joined: datetime.datetime = Field(default_factory=datetime.datetime.now)
+    avatar: Optional[str] = Field(default=None, max_length=500)
+    last_active: Optional[datetime.datetime] = Field(default=None)
+    favorite_genre: Optional[str] = Field(default=None, max_length=100)
+    preferred_store: Optional[str] = Field(default=None, max_length=100)
 
 class User(UserBase, table=True):
     __tablename__ = "users"
@@ -48,6 +52,67 @@ class UserResponse(BaseModel):
     google_id: Optional[str] = None
     role: UserRole
     status: UserStatus
+    joined: datetime.datetime
+    lastActive: Optional[datetime.datetime] = None
+    purchase: int
+    avatar: Optional[str] = None
+
+
+class ProfileUpdate(BaseModel):
+    """Model for updating user profile"""
+    name: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    email: Optional[EmailStr] = None
+    password: Optional[str] = Field(default=None, min_length=3, max_length=1000)
+    avatar: Optional[str] = Field(default=None, max_length=500)
+
+
+class PreferencesUpdate(BaseModel):
+    """Model for updating user preferences"""
+    favoriteGenre: Optional[str] = Field(default=None, max_length=100)
+    preferredStore: Optional[str] = Field(default=None, max_length=100)
+
+
+class ProfileData(BaseModel):
+    """Complete profile data model"""
+    id: int
+    name: str
+    email: EmailStr
+    role: UserRole
+    avatar: Optional[str] = None
+    memberSince: datetime.datetime
+    lastLogin: Optional[datetime.datetime] = None
+
+
+class StatisticsData(BaseModel):
+    """User statistics model"""
+    wishlistItems: int = 0
+    totalSaved: float = 0.0
+    gamesTracked: int = 0
+    priceAlerts: int = 0
+    reviewsWritten: int = 0
+
+
+class PreferencesData(BaseModel):
+    """User preferences model"""
+    favoriteGenre: Optional[str] = None
+    preferredStore: Optional[str] = None
+
+
+class ActivityData(BaseModel):
+    """Activity model"""
+    id: int
+    type: str
+    description: str
+    gameName: str
+    timestamp: datetime.datetime
+
+
+class ProfileResponse(BaseModel):
+    """Complete profile response model"""
+    profile: ProfileData
+    statistics: StatisticsData
+    preferences: PreferencesData
+    activities: list[ActivityData]
 
 
 
