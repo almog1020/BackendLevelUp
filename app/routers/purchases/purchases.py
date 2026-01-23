@@ -1,8 +1,7 @@
 from typing import Annotated
 from fastapi import APIRouter, Depends, status, HTTPException, Query
-from app.dependencies import ActiveEngine
+from app.dependencies import ActiveEngine, get_current_user
 from app.logic.purchases import get_user_purchases, create_purchase
-from app.logic.users import get_current_user
 from app.models.purchases import PurchaseResponse, PurchaseCreate
 from app.models.users import User
 

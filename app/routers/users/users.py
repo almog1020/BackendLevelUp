@@ -1,17 +1,12 @@
 import asyncio
 from typing import Annotated
-from fastapi import APIRouter, status, Path, Depends
-from pydantic import EmailStr
-from app.dependencies import ActiveEngine
-from app.logic.users import create_user, select_users, delete_user_by_email, update_user, get_current_user
-from app.models.users import UserBase, UserRegister, UserResponse, User
 
 from fastapi import APIRouter, status, Path
 from fastapi.params import Depends
 from pydantic import EmailStr
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
-from app.dependencies import ActiveEngine, get_current_active_user
+from app.dependencies import ActiveEngine, get_current_active_user, get_current_user
 from app.logic.users import create_user, select_users, delete_user_by_email, update_user, update_user_status
 from app.models.users import UserBase, UserRegister, UserResponse, User, UserStatus
 
@@ -85,13 +80,14 @@ async def get_users(engine: ActiveEngine ,ws: WebSocket):
 
 
 @router.get('/me', response_model=UserResponse, status_code=status.HTTP_200_OK)
-async def get_me(engine: ActiveEngine, current_user: Annotated[User, Depends(get_current_user)]):
+async def get_me(current_user: Annotated[User, Depends(get_current_user)]):
     """Get current authenticated user."""
     return UserResponse(
         id=current_user.id,
         email=current_user.email,
         name=current_user.name,
         google_id=current_user.google_id,
-        role=current_user.role
+        role=current_user.role,
+        status=current_user.status
     )
 
