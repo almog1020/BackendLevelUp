@@ -1,6 +1,5 @@
 import datetime
 from enum import  auto, StrEnum
-
 from sqlmodel import SQLModel, Field
 from pydantic import EmailStr, BaseModel
 from typing import Optional

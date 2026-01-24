@@ -1,16 +1,14 @@
-import asyncio
 from contextlib import asynccontextmanager
-from fastapi import FastAPI,WebSocket
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.websockets import WebSocketDisconnect
 from sqlmodel import create_engine
 from app.db import create_db_and_tables, postgresql_url
-from app.dependencies import ActiveEngine
-from app.logic.users import select_users
 from app.routers.auth import auth
+from app.routers.reviews import reviews
 from app.routers.users import users
 from app.routers.profile import profile
-
+from app.routers.purchases import purchases
+from app.routers.games import games
 
 
 @asynccontextmanager
@@ -40,17 +38,10 @@ async def add_engine_to_request(request, call_next):
 app.include_router(users.router)
 app.include_router(auth.router)
 app.include_router(profile.router)
+app.include_router(purchases.router)
+app.include_router(games.router)
 
-@app.websocket("/ws")
-async def websocket_endpoint(engine: ActiveEngine ,ws: WebSocket):
-    await ws.accept()
-    while True:
-        try:
-            users_list = select_users(engine)
-            await ws.send_json([user.model_dump(mode="json") for user in users_list])
-            await asyncio.sleep(5)
-        except WebSocketDisconnect:
-            print("Client disconnected")
+app.include_router(reviews.router)
 
 
 
