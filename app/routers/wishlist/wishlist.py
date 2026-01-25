@@ -1,13 +1,12 @@
 from typing import Annotated
 from fastapi import APIRouter, Depends, status, HTTPException
-from app.dependencies import ActiveEngine
+from app.dependencies import ActiveEngine, get_current_user
 from app.logic.wishlist import (
     get_user_wishlist,
     get_wishlist_game_ids,
     add_to_wishlist,
     remove_from_wishlist,
 )
-from app.logic.users import get_current_user
 from app.models.wishlist import WishlistResponse, WishlistCreate
 from app.models.users import User
 

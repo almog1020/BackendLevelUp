@@ -49,17 +49,6 @@ async def edit_user(engine: ActiveEngine, email: Annotated[EmailStr, Path()], us
         edit_user=user,
         email=email
     )
-@router.get('/me',status_code=status.HTTP_200_OK)
-async def get_me(current_user:Annotated[User, Depends(get_current_active_user)]):
-    return UserResponse(
-        id=current_user.id,
-        email=current_user.email,
-        name=current_user.name,
-        google_id=current_user.google_id,
-        role=current_user.role,
-        status=current_user.status
-    )
-
 @router.put('/{email}/logout', status_code=status.HTTP_202_ACCEPTED)
 async def logout_user(engine: ActiveEngine,email: Annotated[EmailStr, Path()],disable:UserStatus):
     update_user_status(
