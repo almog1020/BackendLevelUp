@@ -1,12 +1,8 @@
-<<<<<<< HEAD
-
-
-=======
->>>>>>> main
 services:
   api:
     build: .
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: ${DB_URL}
+      DATABASE_URL: postgresql://avnadmin:AVNS_GDPYnanorPwMj4E6qIm@levelup-db-tshukati4-efe7.h.aivencloud.com:14429/defaultdb?sslmode=require
+

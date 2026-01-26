@@ -3,14 +3,16 @@ from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import EmailStr
 from sqlalchemy import Engine
 from sqlmodel import Session, select
+from typing import Sequence, Annotated, TYPE_CHECKING
 
 from app.logic.auth import get_password_hash
 from app.models.users import User, UserBase, UserRegister, UserRole, UserStatus
-from typing import Sequence, Annotated
+
+if TYPE_CHECKING:
+    from app.dependencies import ActiveEngine, get_current_user
 
 
-
-def require_admin(engine: ActiveEngine, user: User = Depends(get_current_user)):
+def require_admin(engine: "ActiveEngine", user: "User"):
     """
     Admin-only guard.
 
@@ -18,7 +20,21 @@ def require_admin(engine: ActiveEngine, user: User = Depends(get_current_user)):
     Supports role stored as:
       - Enum (e.g., UserRole.ADMIN)   -> role.value or role.name
       - String (e.g., "admin")
+    
+    Usage:
+        from app.dependencies import get_current_user, ActiveEngine
+        from app.logic.users import require_admin
+        
+        @router.get("/admin/endpoint")
+        async def admin_endpoint(
+            engine: ActiveEngine,
+            user: User = Depends(get_current_user)
+        ):
+            admin_user = require_admin(engine, user)
+            ...
     """
+    # Lazy import to avoid circular dependency
+    from app.dependencies import get_current_user
 
     role_value = getattr(user, "role", None)
 

@@ -572,7 +572,6 @@ def _calc_discount_percent(raw_deal: dict) -> float:
     Returns:
         Discount percentage as float, clamped to [0, 100]
     """
-<<<<<<< HEAD
     # Try to get savings field (string like "60.00")
     savings = raw_deal.get("savings")
     if savings is not None:
@@ -581,10 +580,6 @@ def _calc_discount_percent(raw_deal: dict) -> float:
             return max(0.0, min(100.0, discount))
         except (ValueError, TypeError):
             pass
-=======
-    games_db = {}
-    prices_db = []
->>>>>>> main
     
     # Fallback: compute from normalPrice and salePrice
     try:
@@ -658,15 +653,8 @@ async def get_games(search: Optional[str] = None, page_size: int = 30) -> dict:
         prices.append(price.model_dump())
     
     return {
-<<<<<<< HEAD
         "games": games,
         "prices": prices,
-=======
-        "status": "completed",
-        "timestamp": datetime.now().isoformat(),
-        "games_processed": games_added,
-        "prices_processed": prices_added,
->>>>>>> main
     }
 
 
