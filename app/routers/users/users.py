@@ -1,9 +1,12 @@
+import asyncio
 from typing import Annotated
 from fastapi import APIRouter, status, Path, HTTPException
 from fastapi.params import Depends
 from pydantic import EmailStr
 from sqlmodel import Session, select
-from app.dependencies import ActiveEngine, get_current_active_user
+from starlette.websockets import WebSocket, WebSocketDisconnect
+
+from app.dependencies import ActiveEngine, get_current_active_user, get_current_user
 from app.logic.users import create_user, select_users, delete_user_by_email, update_user, update_user_status
 from app.models.users import UserBase, UserRegister, UserResponse, User, UserStatus, PreferencesUpdate
 
@@ -106,5 +109,28 @@ async def logout_user(engine: ActiveEngine,email: Annotated[EmailStr, Path()],di
         engine=engine,
         email=email,
         disable=disable
+    )
+@router.websocket("/ws")
+async def get_users(engine: ActiveEngine ,ws: WebSocket):
+    await ws.accept()
+    while True:
+        try:
+            users_list = select_users(engine)
+            await ws.send_json([user.model_dump(mode="json") for user in users_list])
+            await asyncio.sleep(5)
+        except WebSocketDisconnect:
+            print("Client disconnected")
+
+
+@router.get('/me', response_model=UserResponse, status_code=status.HTTP_200_OK)
+async def get_me(current_user: Annotated[User, Depends(get_current_user)]):
+    """Get current authenticated user."""
+    return UserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        name=current_user.name,
+        google_id=current_user.google_id,
+        role=current_user.role,
+        status=current_user.status
     )
 
