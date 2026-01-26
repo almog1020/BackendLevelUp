@@ -1,3 +1,4 @@
+import datetime
 from fastapi import HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import EmailStr
@@ -18,7 +19,10 @@ def update_user(*, engine: Engine, edit_user: UserBase, email: EmailStr):
         user.role = edit_user.role
         user.status = edit_user.status
         user.purchase = edit_user.purchase
-
+        user.last_active = datetime.now()
+        user.name = edit_user.name
+        user.password = get_password_hash(edit_user.password)
+        
         session.add(user)
         session.commit()
 

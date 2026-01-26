@@ -29,7 +29,6 @@ class UserBase(SQLModel):
     status: UserStatus = Field(default=UserStatus.INACTIVE)
     purchase:int = Field(default=0)
     joined: datetime.datetime = Field(default_factory=datetime.datetime.now)
-    avatar: Optional[str] = Field(default=None, max_length=500)
     last_active: Optional[datetime.datetime] = Field(default=None)
     favorite_genre: Optional[str] = Field(default=None, max_length=100)
     preferred_store: Optional[str] = Field(default=None, max_length=100)

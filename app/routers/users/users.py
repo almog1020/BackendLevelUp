@@ -1,17 +1,52 @@
 from typing import Annotated
-from fastapi import APIRouter, status, Path
+from fastapi import APIRouter, status, Path, HTTPException
 from fastapi.params import Depends
 from pydantic import EmailStr
+from sqlmodel import Session, select
 from app.dependencies import ActiveEngine, get_current_active_user
 from app.logic.users import create_user, select_users, delete_user_by_email, update_user, update_user_status
-from app.models.users import UserBase, UserRegister, UserResponse, User, UserStatus
+from app.models.users import UserBase, UserRegister, UserResponse, User, UserStatus, PreferencesUpdate
 
 router = APIRouter(
     prefix="/users",
     tags=["users"],
     responses={status.HTTP_404_NOT_FOUND: {"description": "Not found"}},
 )
-
+@router.put("/preferences", status_code=status.HTTP_200_OK)
+async def update_preferences(
+    engine: ActiveEngine,
+    preferences_data: PreferencesUpdate,
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    """
+    Update user's gaming preferences (favoriteGenre, preferredStore).
+    """
+    with Session(engine) as db_session:
+        statement = select(User).where(User.id == current_user.id)
+        user = db_session.exec(statement).first()
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Update preferences if provided
+        if preferences_data.favoriteGenre is not None:
+            user.favorite_genre = preferences_data.favoriteGenre
+        
+        if preferences_data.preferredStore is not None:
+            user.preferred_store = preferences_data.preferredStore
+        
+        db_session.add(user)
+        db_session.commit()
+        db_session.refresh(user)
+        
+        return {
+            "message": "Preferences updated successfully",
+            "favoriteGenre": user.favorite_genre,
+            "preferredStore": user.preferred_store
+        }
 
 @router.post('/register', response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(engine: ActiveEngine, user_data: UserRegister) -> UserResponse:

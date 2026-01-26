@@ -17,7 +17,6 @@ from app.routers.profile import profile
 async def lifespan(app: FastAPI):
     engine = create_engine(postgresql_url, echo=True)
     create_db_and_tables(engine)
-    app.state.engine = engine
     yield {"engine": engine}
     engine.dispose()
 app = FastAPI(lifespan=lifespan)
@@ -30,12 +29,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.middleware("http")
-async def add_engine_to_request(request, call_next):
-    """Add engine to request state for dependency injection"""
-    request.state.engine = app.state.engine
-    response = await call_next(request)
-    return response
 
 app.include_router(users.router)
 app.include_router(auth.router)
