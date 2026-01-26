@@ -31,9 +31,9 @@ app.add_middleware(
 app.include_router(users.router)
 app.include_router(auth.router)
 app.include_router(purchases.router)
-app.include_router(admin_games_router)  # IGDB games only - prefix="/games"
-app.include_router(admin_genres_router)  # Admin genres - prefix="/admin"
-app.include_router(admin_topdeals_router)  # Admin top deals - prefix="/admin"
+app.include_router(admin_games_router)  
+app.include_router(admin_genres_router)  
+app.include_router(admin_topdeals_router)  
 app.include_router(reviews.router)
 
 
