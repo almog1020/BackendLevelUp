@@ -4,12 +4,11 @@ from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from pydantic import EmailStr
 
 from app.dependencies import ActiveEngine
 from app.logic.auth import (
-    verify_password,
     create_access_token,
+    get_google_current_user,
 )
 from dotenv import load_dotenv
 from google.oauth2 import id_token
@@ -17,9 +16,11 @@ from google.auth.transport import requests
 
 from sqlmodel import Session, select
 
-from app.logic.users import create_user_from_google, get_user_by_email, get_user_by_google_id, select_user,update_user_status
+from app.logic.users import create_user_from_google, get_user_by_email, get_user_by_google_id, select_user, \
+    update_user_status
 from app.models.token import Token, TokenRequest
-from app.models.users import UserResponse, User, UserStatus
+from app.models.users import User, UserStatus
+from app.utilities.passwords import verify_password
 
 router = APIRouter(
     prefix="/auth",
@@ -30,7 +31,8 @@ router = APIRouter(
 
 load_dotenv()
 
-@router.post("/google", response_model=UserResponse)
+
+@router.post("/google")
 async def google_auth(engine: ActiveEngine, data: TokenRequest):
     """Login or signup with Google authentication"""
     id_info = id_token.verify_oauth2_token(
@@ -63,22 +65,18 @@ async def google_auth(engine: ActiveEngine, data: TokenRequest):
                     user = db_user
     else:
         # New user - signup flow
-        user = create_user_from_google(engine,email, name, google_id)
+        user = create_user_from_google(engine, email, name, google_id)
 
-    return UserResponse(
-        id=user.id,
-        email=user.email,
-        name=user.name,
-        role=user.role,
-        google_id=user.google_id,
-        status=UserStatus.ACTIVE,
-    )
+    if user.status == UserStatus.SUSPENDED:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already suspended")
+
+    update_user_status(engine=engine, email=user.email, disable=UserStatus.ACTIVE)
 
 
 @router.post("/token", response_model=Token)
-async def login(engine: ActiveEngine,form_data:Annotated[OAuth2PasswordRequestForm, Depends()]):
+async def login(engine: ActiveEngine, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
     """Login and get access token."""
-    user = select_user(engine,form_data)
+    user = select_user(engine, form_data)
 
     if not user or not verify_password(form_data.password, user.password):
         raise HTTPException(
@@ -89,7 +87,7 @@ async def login(engine: ActiveEngine,form_data:Annotated[OAuth2PasswordRequestFo
     if user.status == UserStatus.SUSPENDED:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already suspended")
 
-    update_user_status(engine=engine,email=user.email,disable=UserStatus.ACTIVE)
+    update_user_status(engine=engine, email=user.email, disable=UserStatus.ACTIVE)
 
     access_token = create_access_token(
         data={"sub": user.email},
@@ -99,3 +97,6 @@ async def login(engine: ActiveEngine,form_data:Annotated[OAuth2PasswordRequestFo
     return Token(access_token=access_token, token_type="bearer")
 
 
+@router.post("/google/me", response_model=User)
+async def get_google_user(engine: ActiveEngine, data: TokenRequest):
+    return get_google_current_user(engine, data)

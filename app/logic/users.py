@@ -4,9 +4,10 @@ from pydantic import EmailStr
 from sqlalchemy import Engine
 from sqlmodel import Session, select
 
-from app.logic.auth import get_password_hash
 from app.models.users import User, UserBase, UserRegister, UserRole, UserStatus
 from typing import Sequence, Annotated
+
+from app.utilities.passwords import get_password_hash
 
 
 def update_user(*, engine: Engine, edit_user: UserBase, email: EmailStr):
