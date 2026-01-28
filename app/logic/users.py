@@ -5,8 +5,8 @@ from sqlalchemy import Engine
 from sqlmodel import Session, select
 from typing import Sequence, Annotated, TYPE_CHECKING
 
-from app.logic.auth import get_password_hash
 from app.models.users import User, UserBase, UserRegister, UserRole, UserStatus
+from app.utilities.passwords import get_password_hash
 
 if TYPE_CHECKING:
     from app.dependencies import ActiveEngine, get_current_user
