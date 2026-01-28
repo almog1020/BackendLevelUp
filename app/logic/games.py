@@ -95,6 +95,57 @@ async def fetch_cheapshark_game_lookup(game_id: str) -> Optional[dict]:
         return None
 
 
+async def fetch_price_comparison_from_lookup(game_lookup_response: dict) -> list[dict]:
+    """Extract price comparison from CheapShark game lookup API response."""
+    try:
+        stores_map = await fetch_cheapshark_stores()
+        deals = game_lookup_response.get("deals", [])
+        if not deals:
+            logger.warning("No deals found in game lookup response")
+            return []
+        
+        store_prices = {}
+        for deal in deals:
+            store_id_raw = deal.get("storeID")
+            sale_price_str = deal.get("price", "0")
+            deal_id = deal.get("dealID", "")
+            
+            try:
+                sale_price = float(sale_price_str)
+            except (ValueError, TypeError):
+                logger.warning(f"Invalid price format: {sale_price_str}")
+                continue
+            
+            if sale_price > 0 and store_id_raw is not None:
+                store_id = str(store_id_raw)
+                store_name = stores_map.get(store_id, f"Store {store_id}")
+                
+                if store_name.startswith("Store "):
+                    logger.warning(f"Store ID {store_id} not found in stores map. Available stores: {list(stores_map.keys())[:10]}...")
+                
+                deal_url = None
+                if deal_id:
+                    deal_url = f"https://www.cheapshark.com/redirect?dealID={deal_id}"
+                
+                if store_name not in store_prices or sale_price < store_prices[store_name]["price"]:
+                    store_prices[store_name] = {
+                        "store": store_name,
+                        "price": sale_price,
+                        "url": deal_url
+                    }
+        
+        price_comparison = sorted(
+            list(store_prices.values()),
+            key=lambda x: x["price"]
+        )
+        
+        logger.info(f"Found {len(price_comparison)} stores for price comparison")
+        return price_comparison
+    except Exception as e:
+        logger.error(f"Error extracting price comparison from lookup: {e}")
+        return []
+
+
 async def fetch_price_comparison(game_id: str) -> list[dict]:
     """Fetch all deals for a game from different stores to compare prices."""
     try:
@@ -256,7 +307,7 @@ async def transform_deal_to_game_response(deal: dict, is_trending: bool = False,
                 genres = [g.get("name", "") for g in genres_list if g.get("name")] or ["Action"]
     
     price_comparison_list = None
-    if price_comparison:
+    if price_comparison is not None and len(price_comparison) > 0:
         from app.models.games import PriceComparison
         price_comparison_list = [PriceComparison(**pc) for pc in price_comparison]
     
