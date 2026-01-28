@@ -7,8 +7,6 @@ from app.routers.auth import auth
 from app.routers.reviews import reviews
 from app.routers.users import users
 from app.routers.purchases import purchases
-from app.routers.wishlist import wishlist
-from app.models.wishlist import Wishlist  # Import to register table
 from app.routers.games import games
 
 
@@ -31,7 +29,6 @@ app.add_middleware(
 app.include_router(users.router)
 app.include_router(auth.router)
 app.include_router(purchases.router)
-app.include_router(wishlist.router)
 app.include_router(games.router)
 
 app.include_router(reviews.router)
