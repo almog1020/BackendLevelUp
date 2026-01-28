@@ -49,7 +49,6 @@ async def edit_user(engine: ActiveEngine, email: Annotated[EmailStr, Path()], us
         email=email
     )
 
-
 @router.get('/me', status_code=status.HTTP_200_OK)
 async def get_me(current_user: Annotated[User, Depends(get_current_active_user)]):
     return UserResponse(

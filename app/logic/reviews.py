@@ -46,3 +46,4 @@ def get_review(*, engine: Engine, review_id: int) -> Review | None:
         statement = select(Review).where(Review.id == review_id)
         results = session.exec(statement)
         return results.first()
+
