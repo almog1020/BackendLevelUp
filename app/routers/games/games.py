@@ -112,14 +112,14 @@ async def search_games(q: str = Query(..., description="Search query")):
         for game_data in games_data:
             cheapest = float(game_data.get("cheapest", 0))
             estimated_original = cheapest / 0.8 if cheapest > 0 else 0
-            
+            savings = "100.0" if cheapest == 0 else "20.0"
             deal_like = {
                 "gameID": game_data.get("gameID", ""),
                 "title": game_data.get("external", "Unknown"),
                 "thumb": game_data.get("thumb", ""),
                 "salePrice": cheapest,
                 "normalPrice": estimated_original,
-                "savings": "20.0",
+                "savings": savings,
             }
             game = await transform_deal_to_game_response(deal_like, fetch_rawg=False, fetch_rawg_image=False)
             games.append(game)
@@ -168,13 +168,14 @@ async def get_game_by_id(game_id: str):
                             cheapest_deal_id = cheapest_deal.get("dealID", "")
                         
                         estimated_original = cheapest_price / 0.8 if cheapest_price > 0 else 0
+                        savings = "100.0" if cheapest_price == 0 else "20.0"
                         matching_deal = {
                             "gameID": cheapshark_game_id,
                             "title": info.get("title", game_lookup_response.get("external", "Unknown")),
                             "thumb": info.get("thumb", game_lookup_response.get("thumb", "")),
                             "salePrice": cheapest_price,
                             "normalPrice": estimated_original,
-                            "savings": "20.0",
+                            "savings": savings,
                             "dealID": cheapest_deal_id,
                         }
                 except Exception as e:
@@ -185,13 +186,14 @@ async def get_game_by_id(game_id: str):
                 if game_lookup:
                     cheapest = float(game_lookup.get("cheapest", 0))
                     estimated_original = cheapest / 0.8 if cheapest > 0 else 0
+                    savings = "100.0" if cheapest == 0 else "20.0"
                     matching_deal = {
                         "gameID": cheapshark_game_id,
                         "title": game_lookup.get("external", "Unknown"),
                         "thumb": game_lookup.get("thumb", ""),
                         "salePrice": cheapest,
                         "normalPrice": estimated_original,
-                        "savings": "20.0",
+                        "savings": savings,
                         "dealID": game_lookup.get("cheapestDealID", ""),
                     }
             
