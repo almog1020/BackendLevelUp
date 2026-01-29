@@ -4,7 +4,7 @@ from typing import Any
 from sqlmodel import Session, select
 from sqlalchemy import Engine, delete
 
-from app.models.reviews import Review, ReviewBase
+from app.models.reviews import Review, ReviewBase, GameReview
 from app.models.users import User
 
 
@@ -16,20 +16,21 @@ def create_review(*, engine: Engine, review_data: ReviewBase) -> None:
         session.commit()
 
 
-def select_reviews(*, engine: Engine) -> list[tuple[Review, User]]:
+def select_reviews(*, engine: Engine) -> list[GameReview]:
     with Session(engine) as session:
         statement = select(Review, User).join(User,isouter=True)
         results = session.exec(statement)
-        return list(results)
+        return [
+                GameReview(review=review, user=user)
+                for review, user in list(results)
+            ]
 
-def get_game_reviews(*, engine: Engine, game: str) -> list[dict[str, Any | None]]:
+def get_game_reviews(*, engine: Engine, game: str) -> list[GameReview]:
     with Session(engine) as session:
         statement = select(Review, User).join(User,isouter=True).where(Review.game == game)
         results = session.exec(statement)
         return [
-                {"review": review, "user": user}
-                if user else
-                {"review": review, "user": None}
+                GameReview(review=review, user=user)
                 for review, user in list(results)
             ]
 
