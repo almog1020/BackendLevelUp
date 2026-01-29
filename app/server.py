@@ -1,12 +1,16 @@
 from contextlib import asynccontextmanager
+
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import create_engine
+
 from app.db import create_db_and_tables, postgresql_url
 from app.routers.auth import auth
 from app.routers.reviews import reviews
 from app.routers.users import users
-from app.routers.profile import profile
 from app.routers.purchases import purchases
 from app.routers.games import games
 
@@ -17,27 +21,19 @@ async def lifespan(app: FastAPI):
     create_db_and_tables(engine)
     yield {"engine": engine}
     engine.dispose()
+
 app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['http://localhost:5173','https://frontend-level-up-delta.vercel.app'],
+    allow_origins=['http://localhost:5173', 'http://127.0.0.1:5173', 'https://frontend-level-up-delta.vercel.app'],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
 app.include_router(users.router)
 app.include_router(auth.router)
-app.include_router(profile.router)
 app.include_router(purchases.router)
 app.include_router(games.router)
-
 app.include_router(reviews.router)
-
-
-
-
-
-

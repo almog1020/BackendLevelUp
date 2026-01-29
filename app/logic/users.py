@@ -21,8 +21,9 @@ def update_user(*, engine: Engine, edit_user: UserBase, email: EmailStr):
         user.purchase = edit_user.purchase
         user.last_active = datetime.now()
         user.name = edit_user.name
-        user.password = get_password_hash(edit_user.password)
-        
+        if edit_user.password is not None:
+            user.password = get_password_hash(edit_user.password)
+
         session.add(user)
         session.commit()
 
