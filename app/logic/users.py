@@ -3,12 +3,65 @@ from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import EmailStr
 from sqlalchemy import Engine
 from sqlmodel import Session, select
+from typing import Sequence, Annotated, TYPE_CHECKING
 
 from app.models.users import User, UserBase, UserRegister, UserRole, UserStatus
-from typing import Sequence, Annotated
-
 from app.utilities.passwords import get_password_hash
 
+if TYPE_CHECKING:
+    from app.dependencies import ActiveEngine, get_current_user
+
+
+def require_admin(engine: "ActiveEngine", user: "User"):
+    """
+    Admin-only guard.
+
+    Uses get_current_user() to authenticate the request, then checks the user's role.
+    Supports role stored as:
+      - Enum (e.g., UserRole.ADMIN)   -> role.value or role.name
+      - String (e.g., "admin")
+    
+    Usage:
+        from app.dependencies import get_current_user, ActiveEngine
+        from app.logic.users import require_admin
+        
+        @router.get("/admin/endpoint")
+        async def admin_endpoint(
+            engine: ActiveEngine,
+            user: User = Depends(get_current_user)
+        ):
+            admin_user = require_admin(engine, user)
+            ...
+    """
+    # Lazy import to avoid circular dependency
+    from app.dependencies import get_current_user
+
+    role_value = getattr(user, "role", None)
+
+    # If role is missing, block access
+    if role_value is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access only",
+        )
+
+    # Convert role to a comparable lowercase string
+    # If enum: role.value (preferred), else role.name; if string: itself
+    if hasattr(role_value, "value"):
+        role_str = str(role_value.value).lower()
+    elif hasattr(role_value, "name"):
+        role_str = str(role_value.name).lower()
+    else:
+        role_str = str(role_value).lower()
+
+    # Accept only admin
+    if role_str != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access only",
+        )
+
+    return user
 
 def update_user(*, engine: Engine, edit_user: UserBase, email: EmailStr):
     with Session(engine) as session:

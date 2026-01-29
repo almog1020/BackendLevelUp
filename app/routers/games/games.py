@@ -177,4 +177,3 @@ async def get_game_by_id(game_id: str):
     except Exception as e:
         logger.error(f"Error fetching game {game_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch game: {str(e)}")
-
