@@ -143,7 +143,7 @@ async def fetch_price_comparison_from_lookup(game_lookup_response: dict) -> list
                 logger.warning(f"Invalid price format: {sale_price_str}")
                 continue
             
-            if sale_price > 0 and store_id_raw is not None:
+            if sale_price >= 0 and store_id_raw is not None:
                 store_id = str(store_id_raw)
                 store_name = stores_map.get(store_id, f"Store {store_id}")
                 
@@ -196,7 +196,7 @@ async def fetch_price_comparison(game_id: str) -> list[dict]:
                 sale_price = float(deal.get("salePrice", 0))
                 deal_id = deal.get("dealID", "")
                 
-                if sale_price > 0 and store_id_raw is not None:
+                if sale_price >= 0 and store_id_raw is not None:
                     store_id = str(store_id_raw)
                     store_name = stores_map.get(store_id, f"Store {store_id}")
                     
@@ -284,6 +284,8 @@ async def fetch_rawg_image_only(title: str) -> Optional[str]:
 
 def calculate_discount(savings_str: str, normal_price: float, sale_price: float) -> float:
     """Calculate discount percentage from savings string or price difference."""
+    if sale_price == 0:
+        return 100.0
     try:
         return float(savings_str)
     except (ValueError, TypeError):
