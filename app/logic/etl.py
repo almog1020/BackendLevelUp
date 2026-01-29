@@ -14,9 +14,9 @@ from datetime import datetime, timedelta, timezone
 
 from app.models.games import Game, GamePrice
 
-# IGDB API configuration (Twitch OAuth)
-IGDB_CLIENT_ID = os.getenv("IGDB_CLIENT_ID", "vv2p0vpmisdo9u5o34uhjchyd5ndjr")
-IGDB_CLIENT_SECRET = os.getenv("IGDB_CLIENT_SECRET", "mkqxpoaja50arre65d0asfzl35dcu1")
+# IGDB API configuration (Twitch OAuth) - set IGDB_CLIENT_ID and IGDB_CLIENT_SECRET in .env
+IGDB_CLIENT_ID = os.getenv("IGDB_CLIENT_ID", "")
+IGDB_CLIENT_SECRET = os.getenv("IGDB_CLIENT_SECRET", "")
 IGDB_OAUTH_URL = "https://id.twitch.tv/oauth2/token"
 IGDB_GAMES_URL = "https://api.igdb.com/v4/games"
 IGDB_GENRES_URL = "https://api.igdb.com/v4/genres"
