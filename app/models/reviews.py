@@ -1,4 +1,7 @@
+from pydantic import BaseModel
 from sqlmodel import Field, SQLModel
+
+from app.models.users import User
 
 
 class ReviewBase(SQLModel):
@@ -10,3 +13,8 @@ class ReviewBase(SQLModel):
 
 class Review(ReviewBase, table=True):
     __tablename__ = "reviews"
+
+
+class GameReview(BaseModel):
+    user: User | None
+    review: Review

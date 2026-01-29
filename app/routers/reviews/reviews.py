@@ -8,7 +8,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from app.dependencies import ActiveEngine
 from app.logic.reviews import create_review, select_reviews, get_game_reviews, delete_review, get_review
-from app.models.reviews import Review
+from app.models.reviews import Review, GameReview
 from app.models.users import User
 
 router = APIRouter(
@@ -23,12 +23,12 @@ async def add_review(engine: ActiveEngine, review_data: Review) -> None:
     create_review(engine=engine, review_data=review_data)
 
 
-@router.get("/", status_code=status.HTTP_200_OK)
+@router.get("/", status_code=status.HTTP_200_OK, response_model=list[GameReview])
 async def read_reviews(engine: ActiveEngine):
     return select_reviews(engine=engine)
 
 
-@router.get("/{game}", status_code=status.HTTP_200_OK)
+@router.get("/{game}", status_code=status.HTTP_200_OK, response_model=list[GameReview])
 async def read_game_reviews(game: str, engine: ActiveEngine):
     return get_game_reviews(game=game, engine=engine)
 
@@ -42,21 +42,5 @@ async def remove_review(engine: ActiveEngine, id: int) -> None:
             detail="Review not found"
         )
     delete_review(engine=engine, review_id=id)
-
-@router.websocket("/ws")
-async def get_reviews(engine: ActiveEngine, ws: WebSocket):
-    await ws.accept()
-    while True:
-        try:
-            reviews = select_reviews(engine=engine)
-            await ws.send_json([
-                {"review": review.model_dump(mode='json'), "user": user.model_dump(mode="json")}
-                if user else
-                {"review": review.model_dump(mode='json'), "user": None}
-                for review, user in reviews
-            ])
-            await asyncio.sleep(5)
-        except WebSocketDisconnect:
-            print("Client disconnected")
 
 
