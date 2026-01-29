@@ -48,6 +48,11 @@ class UserResponse(BaseModel):
     role: UserRole
     status: UserStatus
 
+class PreferencesUpdate(BaseModel):
+    """Model for updating user preferences"""
+    favoriteGenre: Optional[str] = None
+    preferredStore: Optional[str] = None
+
 
 
 

@@ -48,3 +48,10 @@ def get_review(*, engine: Engine, review_id: int) -> Review | None:
         results = session.exec(statement)
         return results.first()
 
+def get_user_reviews(*, engine: Engine, user_id: int) -> list[Review]:
+    """Get all reviews written by a specific user."""
+    with Session(engine) as session:
+        statement = select(Review).where(Review.user_id == user_id)
+        results = session.exec(statement)
+        return list(results)
+

@@ -1,15 +1,10 @@
-import asyncio
-import json
-
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import null
 from starlette import status
-from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from app.dependencies import ActiveEngine
-from app.logic.reviews import create_review, select_reviews, get_game_reviews, delete_review, get_review
+from app.logic.reviews import create_review, select_reviews, get_game_reviews, delete_review, get_review, \
+    get_user_reviews
 from app.models.reviews import Review, GameReview
-from app.models.users import User
 
 router = APIRouter(
     prefix="/reviews",
@@ -42,5 +37,11 @@ async def remove_review(engine: ActiveEngine, id: int) -> None:
             detail="Review not found"
         )
     delete_review(engine=engine, review_id=id)
+
+
+@router.get("/user/{user_id}", status_code=status.HTTP_200_OK)
+async def read_user_reviews(user_id: int, engine: ActiveEngine):
+    """Get all reviews written by a specific user."""
+    return get_user_reviews(engine=engine, user_id=user_id)
 
 
