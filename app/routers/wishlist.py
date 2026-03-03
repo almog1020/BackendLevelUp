@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Body, Depends, HTTPException, Response, status
 from sqlmodel import Session, select
 
-from app.dependencies import get_current_user, get_session
+from app.dependencies import ActiveEngine, get_current_user
 from app.models.users import User
 from app.models.wishlist import WishlistCreate, WishlistItem, WishlistRead
 
@@ -25,12 +25,11 @@ router = APIRouter(
 )
 async def add_to_wishlist(
     user: Annotated[User, Depends(get_current_user)],
-    session: Annotated[Session, Depends(get_session)],
+    engine: ActiveEngine,
     response: Response,
     payload: WishlistCreate = Body(...),
 ):
     """Add a game to the current user's wishlist."""
-    # Backward compatibility: allow legacy game_id field.
     if not payload.game_id:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -38,40 +37,40 @@ async def add_to_wishlist(
         )
     title = payload.title
 
-    # Check uniqueness to prevent duplicate wishlist entries.
-    existing = session.exec(
-        select(WishlistItem).where(
-            WishlistItem.user_id == user.id,
-            WishlistItem.external_game_id == payload.game_id,
+    with Session(engine) as session:
+        existing = session.exec(
+            select(WishlistItem).where(
+                WishlistItem.user_id == user.id,
+                WishlistItem.external_game_id == payload.game_id,
+            )
+        ).first()
+        if existing:
+            response.status_code = status.HTTP_200_OK
+            return WishlistRead(
+                id=existing.id,
+                external_game_id=existing.external_game_id,
+                title=existing.title,
+                thumb=existing.thumb,
+                created_at=existing.created_at,
+            )
+
+        wishlist = WishlistItem(
+            user_id=user.id,
+            external_game_id=payload.game_id,
+            title=title,
+            thumb=payload.thumb,
         )
-    ).first()
-    if existing:
-        response.status_code = status.HTTP_200_OK
+        session.add(wishlist)
+        session.commit()
+        session.refresh(wishlist)
+
         return WishlistRead(
-            id=existing.id,
-            external_game_id=existing.external_game_id,
-            title=existing.title,
-            thumb=existing.thumb,
-            created_at=existing.created_at,
+            id=wishlist.id,
+            external_game_id=wishlist.external_game_id,
+            title=wishlist.title,
+            thumb=wishlist.thumb,
+            created_at=wishlist.created_at,
         )
-
-    wishlist = WishlistItem(
-        user_id=user.id,
-        external_game_id=payload.game_id,
-        title=title,
-        thumb=payload.thumb,
-    )
-    session.add(wishlist)
-    session.commit()
-    session.refresh(wishlist)
-
-    return WishlistRead(
-        id=wishlist.id,
-        external_game_id=wishlist.external_game_id,
-        title=wishlist.title,
-        thumb=wishlist.thumb,
-        created_at=wishlist.created_at,
-    )
 
 
 @router.get(
@@ -87,16 +86,16 @@ async def add_to_wishlist(
 )
 async def get_my_wishlist(
     user: Annotated[User, Depends(get_current_user)],
-    session: Annotated[Session, Depends(get_session)],
+    engine: ActiveEngine,
 ):
     """Get the current user's wishlist items."""
-    items = session.exec(
-        select(WishlistItem)
-        .where(WishlistItem.user_id == user.id)
-        .order_by(WishlistItem.created_at.desc())
-    ).all()
-
-    return list(items)
+    with Session(engine) as session:
+        items = session.exec(
+            select(WishlistItem)
+            .where(WishlistItem.user_id == user.id)
+            .order_by(WishlistItem.created_at.desc())
+        ).all()
+        return list(items)
 
 
 @router.delete(
@@ -106,18 +105,18 @@ async def get_my_wishlist(
 async def remove_from_wishlist(
     game_id: str,
     user: Annotated[User, Depends(get_current_user)],
-    session: Annotated[Session, Depends(get_session)],
+    engine: ActiveEngine,
 ):
     """Remove a game from the current user's wishlist."""
-    item = session.exec(
-        select(WishlistItem).where(
-            WishlistItem.user_id == user.id,
-            WishlistItem.external_game_id == game_id,
-        )
-    ).first()
+    with Session(engine) as session:
+        item = session.exec(
+            select(WishlistItem).where(
+                WishlistItem.user_id == user.id,
+                WishlistItem.external_game_id == game_id,
+            )
+        ).first()
 
-    # Check item exists, then delete.
-    if not item:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Wishlist item not found")
-    session.delete(item)
-    session.commit()
+        if not item:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Wishlist item not found")
+        session.delete(item)
+        session.commit()
