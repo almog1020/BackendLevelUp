@@ -62,4 +62,3 @@ class GamePrice(BaseModel):
 class GameWithPrices(BaseModel):
     game: Game
     prices: list[GamePrice]
-

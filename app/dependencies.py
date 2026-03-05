@@ -22,6 +22,7 @@ async def get_engine(request: HTTPConnection) -> Engine:
 ActiveEngine = Annotated[Engine, Depends(get_engine)]
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
+
 async def get_current_user(engine: ActiveEngine, token: Annotated[EmailStr, Depends(oauth2_scheme)]) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

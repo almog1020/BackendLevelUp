@@ -7,10 +7,11 @@ from app.routers.auth import auth
 from app.routers.reviews import reviews
 from app.routers.users import users
 from app.routers.purchases import purchases
-from app.routers.games import games
 from app.routers.admin.games import router as admin_games_router
 from app.routers.admin.genres import router as admin_genres_router
 from app.routers.admin.topdeals import router as admin_topdeals_router
+from app.routers.games import games
+from app.routers import wishlist
 
 
 @asynccontextmanager
@@ -23,20 +24,26 @@ app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['http://localhost:5173','https://levelupgame.vercel.app'],
+    allow_origins=[
+        "http://localhost:5173",
+        "https://levelupgame.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+
+
 app.include_router(users.router)
 app.include_router(auth.router)
 app.include_router(purchases.router)
-app.include_router(games.router)
-app.include_router(admin_games_router)
-app.include_router(admin_genres_router)
-app.include_router(admin_topdeals_router)
+app.include_router(admin_games_router)  
+app.include_router(admin_genres_router)  
+app.include_router(admin_topdeals_router)  
 app.include_router(reviews.router)
+app.include_router(games.router)
+app.include_router(wishlist.router)
 
 
 
