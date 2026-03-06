@@ -1,5 +1,4 @@
 import asyncio
-import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, status, Path, HTTPException
@@ -73,7 +72,7 @@ async def update_preferences(
         }
 
 
-@router.put('/by-email/{email}', status_code=status.HTTP_202_ACCEPTED)
+@router.put('/{email}', status_code=status.HTTP_202_ACCEPTED)
 async def edit_user(engine: ActiveEngine, email: Annotated[EmailStr, Path()], user: UserBase):
     if user.email is not None and user.email != email:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Changing email is not allowed")
@@ -85,7 +84,6 @@ async def edit_user(engine: ActiveEngine, email: Annotated[EmailStr, Path()], us
 
 @router.get('/me', status_code=status.HTTP_200_OK)
 async def get_me(current_user: Annotated[User, Depends(get_current_active_user)]):
-    joined = current_user.joined or datetime.datetime.now()
     return UserResponse(
         id=current_user.id,
         email=current_user.email,
@@ -94,7 +92,7 @@ async def get_me(current_user: Annotated[User, Depends(get_current_active_user)]
         role=current_user.role,
         status=current_user.status,
         purchase=current_user.purchase,
-        joined=joined,
+        joined=current_user.joined,
         favorite_genre=getattr(current_user, "favorite_genre", None),
         preferred_store=getattr(current_user, "preferred_store", None),
     )
