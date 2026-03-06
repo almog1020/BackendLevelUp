@@ -93,6 +93,7 @@ async def get_me(current_user: Annotated[User, Depends(get_current_active_user)]
         status=current_user.status,
         purchase=current_user.purchase,
         joined=current_user.joined,
+        last_login=getattr(current_user, "last_login", None),
         favorite_genre=getattr(current_user, "favorite_genre", None),
         preferred_store=getattr(current_user, "preferred_store", None),
     )

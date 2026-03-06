@@ -28,6 +28,7 @@ class UserBase(SQLModel):
     status: UserStatus = Field(default=UserStatus.INACTIVE)
     purchase:int = Field(default=0)
     joined: datetime.datetime = Field(default_factory=datetime.datetime.now)
+    last_login: Optional[datetime.datetime] = Field(default=None)
     favorite_genre: Optional[str] = Field(default=None, max_length=255)
     preferred_store: Optional[str] = Field(default=None, max_length=255)
 
@@ -51,6 +52,7 @@ class UserResponse(BaseModel):
     status: UserStatus
     purchase: int | None = None
     joined: datetime.datetime | None = None
+    last_login: datetime.datetime | None = None
     favorite_genre: Optional[str] = None
     preferred_store: Optional[str] = None
 
