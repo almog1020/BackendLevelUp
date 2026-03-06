@@ -16,7 +16,8 @@ from app.routers import wishlist
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    engine = create_engine(postgresql_url, echo=True)
+    connect_args = {"check_same_thread": False} if postgresql_url.startswith("sqlite") else {}
+    engine = create_engine(postgresql_url, echo=True, connect_args=connect_args)
     create_db_and_tables(engine)
     yield {"engine": engine}
     engine.dispose()

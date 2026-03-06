@@ -17,7 +17,7 @@ from google.auth.transport import requests
 from sqlmodel import Session, select
 
 from app.logic.users import create_user_from_google, get_user_by_email, get_user_by_google_id, select_user, \
-    update_user_status
+    update_user_status, update_last_login
 from app.models.token import Token, TokenRequest
 from app.models.users import User, UserStatus
 from app.utilities.passwords import verify_password
@@ -71,6 +71,7 @@ async def google_auth(engine: ActiveEngine, data: TokenRequest):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already suspended")
 
     update_user_status(engine=engine, email=user.email, disable=UserStatus.ACTIVE)
+    update_last_login(engine=engine, email=user.email)
 
 
 @router.post("/token", response_model=Token)
@@ -88,6 +89,7 @@ async def login(engine: ActiveEngine, form_data: Annotated[OAuth2PasswordRequest
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already suspended")
 
     update_user_status(engine=engine, email=user.email, disable=UserStatus.ACTIVE)
+    update_last_login(engine=engine, email=user.email)
 
     access_token = create_access_token(
         data={"sub": user.email},

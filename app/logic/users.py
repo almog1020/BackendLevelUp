@@ -86,6 +86,18 @@ def update_user_status(*, engine: Engine, disable: UserStatus, email: EmailStr):
         session.add(user)
         session.commit()
 
+
+def update_last_login(*, engine: Engine, email: EmailStr) -> None:
+    """Set user's last_login to now (called on successful login)."""
+    import datetime
+    with Session(engine) as session:
+        statement = select(User).where(User.email == email)
+        user = session.exec(statement).first()
+        if user:
+            user.last_login = datetime.datetime.now()
+            session.add(user)
+            session.commit()
+
 def delete_user_by_email(engine: Engine, email: EmailStr):
     with Session(engine) as session:
         statement = select(User).where(User.email == email)
